@@ -1,0 +1,20 @@
+import { z } from "zod";
+
+export const ResumeChangeAuditSchema = z.object({
+  changeId: z.string(),
+  targetSection: z.string(),
+  originalText: z.string().optional(),
+  newText: z.string(),
+  reason: z.string(),
+  classification: z.enum([
+    "proven",
+    "rewritten",
+    "inferred_safe",
+    "needs_user_validation",
+    "blocked",
+  ]),
+  sourceFactIds: z.array(z.string()),
+  risk: z.enum(["low", "medium", "high"]),
+});
+
+export type ResumeChangeAudit = z.infer<typeof ResumeChangeAuditSchema>;
