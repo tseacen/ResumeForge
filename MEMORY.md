@@ -24,6 +24,7 @@ The user imports a current CV as HTML and pastes a job offer. The app analyzes c
 Never invent facts.
 
 Every generated CV change must be traceable to a source fact from:
+
 - the original CV HTML
 - manually validated user profile facts
 - explicit user confirmation
@@ -50,6 +51,7 @@ Fallback to normal commands if RTK is not available.
 Build a functional local POC before anything else.
 
 Focus on:
+
 1. schemas
 2. parsing
 3. scoring
@@ -59,6 +61,7 @@ Focus on:
 7. Tauri packaging
 
 Avoid:
+
 - SaaS backend
 - auth
 - billing

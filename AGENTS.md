@@ -5,6 +5,7 @@
 Build a local-first CV Tailoring Agent POC.
 
 Stack:
+
 - Tauri
 - Next.js
 - TypeScript
@@ -17,10 +18,12 @@ Stack:
 ## Main objective
 
 The app lets a user paste:
+
 1. A current resume in HTML.
 2. A job offer text.
 
 Then it:
+
 - parses the resume
 - parses the job offer
 - scores compatibility
@@ -34,6 +37,7 @@ Then it:
 Never invent resume facts.
 
 No invented:
+
 - skills
 - companies
 - job titles
@@ -114,6 +118,7 @@ rtk pnpm build
 ## POC features
 
 Must have:
+
 - resume HTML input
 - job offer text input
 - structured parsing
@@ -125,6 +130,7 @@ Must have:
 - simple Tauri desktop shell
 
 Must not start with:
+
 - SaaS backend
 - auth
 - billing
@@ -157,6 +163,7 @@ docs/
 ## Definition of done
 
 The POC is done when:
+
 - `pnpm dev` runs the app
 - `pnpm tauri dev` runs the desktop shell
 - the user can analyze one CV against one job offer

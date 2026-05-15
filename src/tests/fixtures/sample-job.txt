@@ -1,0 +1,30 @@
+Senior Full-Stack Engineer at TechCorp
+
+About TechCorp
+We are a fast-growing SaaS company building tools for developer teams worldwide.
+
+About the Role
+You will join our platform team to build and scale our core product. We ship fast and care deeply about code quality.
+
+Requirements
+- 5+ years of experience in software development
+- Strong proficiency in TypeScript and React
+- Experience with Node.js and REST API design
+- Familiarity with PostgreSQL or another relational database
+- Experience with cloud platforms (AWS, GCP, or Azure)
+- Experience with Docker and container orchestration
+
+Nice to Have
+- Experience with Kubernetes
+- Knowledge of GraphQL
+- Contributions to open-source projects
+- Experience in a SaaS or B2B environment
+
+Responsibilities
+- Design and implement new product features end-to-end
+- Collaborate with product and design teams
+- Review code and mentor junior engineers
+- Contribute to architecture decisions
+
+Position Details
+Full-time, Remote (EU timezone preferred)

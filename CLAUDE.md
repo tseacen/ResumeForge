@@ -7,11 +7,13 @@ This file gives Claude Code persistent project instructions for building a local
 The project is a POC for a Tauri + Next.js + TypeScript + Tailwind application.
 
 The user provides:
+
 1. Their current resume as HTML.
 2. A job offer, usually pasted from LinkedIn or another job board.
 3. Optionally, extra verified profile facts.
 
 The app must:
+
 - Parse the resume into structured data.
 - Parse the job offer into structured requirements.
 - Compare both.
@@ -27,6 +29,7 @@ The app must:
 Never add information that is not present in the source resume or explicitly validated by the user.
 
 Allowed:
+
 - Rewriting for clarity.
 - Reordering sections.
 - Highlighting existing experience.
@@ -34,6 +37,7 @@ Allowed:
 - Adding keywords only when they are clearly supported by existing facts.
 
 Forbidden:
+
 - Inventing experience.
 - Inventing metrics.
 - Inventing seniority.
@@ -65,6 +69,7 @@ The POC must work locally by default.
 Do not assume a backend SaaS exists.
 
 Store data locally first:
+
 - resume inputs
 - job descriptions
 - parsed JSON
@@ -79,6 +84,7 @@ A remote LLM provider can be used, but the app architecture must allow swapping 
 Do not hardcode the app to one AI provider or one coding assistant.
 
 The codebase must be friendly to:
+
 - Claude Code
 - OpenAI Codex
 - OpenAI API
@@ -95,6 +101,7 @@ This project should use `rtk` for shell commands whenever it is available.
 RTK is a CLI proxy that compresses noisy terminal outputs before they enter an AI coding agent context. It is especially useful with Claude Code and Codex when running commands such as tests, linting, git operations, package manager commands, searches, and directory listings.
 
 Default rule:
+
 - Prefer `rtk <command>` over `<command>` for commands whose output may be long.
 - If `rtk` is not installed or fails because the command is unsupported, fall back to the normal command.
 - Do not let RTK hide important errors. When debugging, request enough detail to understand the failure.
@@ -269,6 +276,7 @@ The POC must include:
 10. Clean, responsive UI.
 
 Do not start with:
+
 - user accounts
 - SaaS billing
 - remote database
@@ -296,7 +304,7 @@ export const ResumeFactSchema = z.object({
     "education",
     "metric",
     "link",
-    "availability"
+    "availability",
   ]),
   text: z.string(),
   normalizedKeywords: z.array(z.string()).default([]),
@@ -319,7 +327,7 @@ export const JobRequirementSchema = z.object({
     "domain",
     "seniority",
     "location",
-    "availability"
+    "availability",
   ]),
   importance: z.enum(["required", "preferred", "bonus"]),
   evidenceText: z.string().optional(),
@@ -359,7 +367,7 @@ export const ResumeChangeAuditSchema = z.object({
     "rewritten",
     "inferred_safe",
     "needs_user_validation",
-    "blocked"
+    "blocked",
   ]),
   sourceFactIds: z.array(z.string()),
   risk: z.enum(["low", "medium", "high"]),
@@ -382,11 +390,7 @@ Example:
 
 ```ts
 global =
-  technicalFit * 0.35 +
-  recruiterFit * 0.25 +
-  ats * 0.20 +
-  seniorityFit * 0.10 +
-  marketFit * 0.10;
+  technicalFit * 0.35 + recruiterFit * 0.25 + ats * 0.2 + seniorityFit * 0.1 + marketFit * 0.1;
 ```
 
 The report must explain the score in human terms.
@@ -394,6 +398,7 @@ The report must explain the score in human terms.
 ## LLM usage
 
 The LLM should be used for:
+
 - extracting requirements from unstructured job text
 - improving wording
 - explaining compatibility
@@ -404,6 +409,7 @@ The LLM should be used for:
 The LLM should not be trusted blindly.
 
 Always validate:
+
 - output JSON with Zod
 - generated bullets against source facts
 - forbidden additions
@@ -517,6 +523,7 @@ Create these files under `.claude/commands/`.
 Analyze the current CV Tailoring Agent implementation.
 
 Focus on:
+
 - correctness
 - truthfulness rules
 - schema validation
@@ -526,11 +533,13 @@ Focus on:
 
 Use RTK for commands when available.
 Run:
+
 - rtk pnpm lint
 - rtk pnpm test
 - rtk pnpm build
 
 Return:
+
 1. Issues found
 2. Risk level
 3. Recommended fixes
@@ -543,6 +552,7 @@ Return:
 Implement or improve the CV tailoring workflow.
 
 Rules:
+
 - Never invent facts.
 - Every generated CV change must include an audit record.
 - Validate all structured data with Zod.
@@ -550,6 +560,7 @@ Rules:
 - Use RTK for shell commands when available.
 
 Expected result:
+
 - Tailored resume HTML
 - Compatibility report
 - Audit trail
@@ -562,6 +573,7 @@ Expected result:
 Audit the app for hallucination risks.
 
 Check:
+
 - whether generated bullets are traceable to source facts
 - whether unsupported job keywords are added
 - whether generated metrics are invented
@@ -593,6 +605,7 @@ Return a prioritized list of fixes.
 Resume and job data are sensitive.
 
 The app must:
+
 - store data locally by default
 - avoid analytics in the POC
 - avoid external calls unless explicitly triggered
@@ -624,6 +637,7 @@ The POC is considered functional when:
 Build a working POC first.
 
 Prefer:
+
 - simple, functional, tested flows
 - clear schemas
 - strong truthfulness guardrails
@@ -631,6 +645,7 @@ Prefer:
 - local-first behavior
 
 Avoid:
+
 - over-engineering
 - premature SaaS architecture
 - excessive agent complexity

@@ -1,6 +1,7 @@
 Audit the app for hallucination risks.
 
 Check:
+
 - whether generated bullets are traceable to source facts
 - whether unsupported job keywords are added
 - whether generated metrics are invented
