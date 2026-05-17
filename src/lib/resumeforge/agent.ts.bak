@@ -248,7 +248,7 @@ export function completeSession(
       kind: "assistant",
       id: "assistant-complete",
       body: [
-        `Le CV adapté est prêt avec un score de **${session.score?.global ?? 0}/100**.`,
+        `Le CV adapté est prêt avec un score de **${session.score.global}/100**.`,
         provenance,
         blocked.length
           ? `${blocked.length} revendication${blocked.length > 1 ? "s" : ""} non prouvée${blocked.length > 1 ? "s" : ""} a été bloquée pour éviter toute hallucination.`
@@ -270,7 +270,7 @@ export function summarizeSession(session: AdaptationSession): AdaptationSessionS
     id: session.id,
     title: session.title,
     company: session.company,
-    score: session.score?.global ?? 0,
+    score: session.score.global,
     status: session.phase === "chat-adapted" ? "adapted" : "diagnostic",
     updatedAt: session.updatedAt,
   };

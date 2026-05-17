@@ -13,11 +13,12 @@ interface TopbarProps {
   phase: AppPhase;
   title: string | null;
   canExport: boolean;
+  activeModel?: string;
   onReset: () => void;
   onExport: () => void;
 }
 
-export function Topbar({ phase, title, canExport, onReset, onExport }: TopbarProps) {
+export function Topbar({ phase, title, canExport, activeModel, onReset, onExport }: TopbarProps) {
   const isSetup = phase === "setup-ai" || phase === "setup-cv";
   const displayTitle = isSetup ? "Configuration" : (title ?? "Nouvelle adaptation");
   const accent = isSetup ? "initiale" : title ? "" : "adaptation";
@@ -35,6 +36,11 @@ export function Topbar({ phase, title, canExport, onReset, onExport }: TopbarPro
         )}
       </div>
       <div className="flex items-center gap-1.5">
+        {!isSetup && activeModel && (
+          <span className="mr-3 font-[family-name:var(--font-mono)] text-xs text-[var(--muted-2)]">
+            via {activeModel}
+          </span>
+        )}
         {title && !isSetup && (
           <button className={`${ghostButton} max-[980px]:hidden`} type="button">
             <History size={13} /> Historique

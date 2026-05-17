@@ -14,6 +14,7 @@ import {
   buildSessionFromAnalysis,
   completeSession,
   summarizeSession,
+  initializeSession,
 } from "@/lib/resumeforge/agent";
 import { loadPersistedState, savePersistedState } from "@/lib/resumeforge/storage";
 import { type ResumeForgePersistedState, type ResumeForgeState } from "@/lib/schemas/app.schema";
@@ -67,11 +68,11 @@ type Action =
   | { type: "session/create"; session: AdaptationSession }
   | { type: "session/apply-tailored"; analysis: AnalysisResponse }
   | {
-      type: "session/complete";
-      llmUsed?: boolean;
-      providerName?: string;
-      model?: string;
-    }
+    type: "session/complete";
+    llmUsed?: boolean;
+    providerName?: string;
+    model?: string;
+  }
   | { type: "session/select"; id: string }
   | { type: "session/delete"; id: string }
   | { type: "question/answer"; questionId: string; answer: string }
@@ -373,20 +374,30 @@ export function ResumeForgeApp() {
     const endTimer = devTimer("app", "handleSubmitJob (diagnostic)");
     setIsGenerating(true);
     dispatch({ type: "error", message: null });
+
+    // On commence par initialiser la session dans le state pour pouvoir y injecter des messages d'erreur si la suite plante (l'IA ne répond par ex)
+    const session = initializeSession(jobText);
+    dispatch({ type: "session/create", session });
+
     try {
       const analysis = await fetchAnalysis(state.masterResumeHtml, jobText);
-      const session = buildSessionFromAnalysis(jobText, analysis);
-      dispatch({ type: "session/create", session });
-      devLog("app", "session created", {
-        id: session.id,
-        title: session.title,
-        score: session.score.global,
+      const updatedSession = buildSessionFromAnalysis(jobText, analysis, session.id);
+      dispatch({ type: "session/create", session: updatedSession });
+      devLog("app", "session updated", {
+        id: updatedSession.id,
+        title: updatedSession.title,
       });
     } catch (error) {
       devError("app", "submit failed", error instanceof Error ? error.message : error);
+
+      const errorMessage = error instanceof Error ? error.message : "Analyse impossible.";
+      const newMessages = session.messages
+        .filter(m => m.kind !== "assistant-typing")
+        .concat({ kind: "error", id: "error-1", message: errorMessage });
+
       dispatch({
-        type: "error",
-        message: error instanceof Error ? error.message : "Analyse impossible.",
+        type: "session/create",
+        session: { ...session, messages: newMessages }
       });
     } finally {
       endTimer();
@@ -423,7 +434,7 @@ export function ResumeForgeApp() {
   }
 
   function handleExport() {
-    if (!state.activeSession || state.activeSession.phase !== "chat-adapted") return;
+    if (!state.activeSession || state.activeSession.phase !== "chat-adapted" || !state.activeSession.tailoredHtml) return;
     downloadHtml(state.activeSession.tailoredHtml, "resumeforge-adapted-cv.html");
   }
 
@@ -448,6 +459,9 @@ export function ResumeForgeApp() {
         <Topbar
           phase={state.phase}
           title={state.activeSession?.title ?? null}
+          activeModel={
+            state.settings.selectedModels?.[state.settings.selectedProvider] ?? state.settings.selectedProvider
+          }
           canExport={Boolean(adaptedReady)}
           onReset={() => dispatch({ type: "session/new" })}
           onExport={handleExport}

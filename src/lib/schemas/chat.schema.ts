@@ -48,6 +48,7 @@ export const ChatMessageSchema = z.discriminatedUnion("kind", [
   }),
   z.object({ kind: z.literal("question"), id: z.string(), question: ValidationQuestionSchema }),
   z.object({ kind: z.literal("generating"), id: z.string(), label: z.string(), done: z.boolean() }),
+  z.object({ kind: z.literal("error"), id: z.string(), message: z.string() }),
 ]);
 
 export type ChatMessage = z.infer<typeof ChatMessageSchema>;

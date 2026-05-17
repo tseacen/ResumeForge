@@ -78,9 +78,8 @@ function StepBadge({ label, done }: { label: string; done: boolean }) {
   return (
     <div className="inline-flex items-center gap-2.5 self-center rounded-full border border-[var(--line)] bg-[var(--card)] py-1.5 pr-3.5 pl-2 text-xs font-medium whitespace-nowrap text-[var(--muted)] shadow-[var(--shadow-sm)]">
       <span
-        className={`grid h-[18px] w-[18px] place-items-center rounded-full font-[family-name:var(--font-mono)] text-[10px] font-semibold text-white ${
-          done ? "bg-[var(--success)]" : "bg-[var(--accent)]"
-        }`}
+        className={`grid h-[18px] w-[18px] place-items-center rounded-full font-[family-name:var(--font-mono)] text-[10px] font-semibold text-white ${done ? "bg-[var(--success)]" : "bg-[var(--accent)]"
+          }`}
       >
         {done ? <Check size={10} /> : null}
       </span>
@@ -281,22 +280,18 @@ function ActionPaste({ onSubmitJob }: { onSubmitJob: (jobText: string) => void }
 }
 
 function Welcome({
-  onSubmitJob,
   onEditMasterResume,
   onOpenSettings,
   masterResumeReady,
   providerReady,
   providerLabel,
 }: {
-  onSubmitJob: (jobText: string) => void;
   onEditMasterResume: () => void;
   onOpenSettings: () => void;
   masterResumeReady: boolean;
   providerReady: boolean;
   providerLabel: string;
 }) {
-  const [jobText, setJobText] = useState("");
-  const canSubmit = masterResumeReady && providerReady && jobText.trim().length >= 40;
   return (
     <div className="flex min-h-full items-center justify-center px-7 pt-10 pb-20">
       <div className="w-full max-w-[720px]">
@@ -332,43 +327,6 @@ function Welcome({
             Ajoutez d&apos;abord votre CV maître pour lancer une adaptation.
           </div>
         )}
-        <div className="rounded-[14px] border border-[var(--line)] bg-[var(--card)] px-[18px] py-4 shadow-[var(--shadow-sm)]">
-          <div className="mb-2 flex items-center gap-2 font-[family-name:var(--font-display)] text-[15px] font-medium tracking-[-0.01em] text-[var(--ink)]">
-            <FileText className="h-7 w-7 rounded-[7px] bg-[var(--accent-tint)] p-[7px] text-[var(--accent)]" />
-            Description du poste
-          </div>
-          <textarea
-            className="min-h-[180px] w-full resize-y rounded-[10px] border border-[var(--line)] bg-[var(--card-2)] px-[13px] py-[11px] text-[13.5px] leading-[1.55] text-[var(--ink-2)] outline-none focus:border-[var(--accent)] focus:bg-[var(--card)] focus:shadow-[var(--focus)] disabled:cursor-not-allowed disabled:opacity-60"
-            value={jobText}
-            disabled={!masterResumeReady || !providerReady}
-            onChange={(event) => setJobText(event.target.value)}
-            placeholder={
-              providerReady
-                ? "Collez ici l'offre d'emploi complète (titre, missions, prérequis)…"
-                : `Configurez ${providerLabel} pour activer la saisie.`
-            }
-          />
-          <div className="mt-2.5 flex items-center justify-between gap-3 text-xs text-[var(--muted)]">
-            <span>
-              {jobText.trim().length > 0
-                ? `${jobText.trim().length} caractères`
-                : providerReady
-                  ? `Analyse via ${providerLabel} (CLI local).`
-                  : `${providerLabel} requis pour lancer l'analyse.`}
-            </span>
-            <button
-              className={primarySmallButton}
-              type="button"
-              disabled={!canSubmit}
-              onClick={() => {
-                onSubmitJob(jobText);
-                setJobText("");
-              }}
-            >
-              <ArrowUp size={12} /> Lancer l&apos;analyse
-            </button>
-          </div>
-        </div>
         <div className="mt-4 flex flex-wrap gap-2 text-[13px] text-[var(--muted)]">
           <button
             className="inline-flex items-center gap-1.5 rounded-md border border-[var(--line)] bg-[var(--card-2)] px-2.5 py-1 hover:border-[var(--line-2)] hover:text-[var(--ink-2)]"
@@ -516,7 +474,6 @@ export function ChatPane({
       <section className="flex min-h-0 min-w-0 flex-col border-r border-[var(--line)] bg-[var(--bg)]">
         <div className="min-h-0 flex-1 overflow-auto px-6 pt-6 pb-2">
           <Welcome
-            onSubmitJob={onSubmitJob}
             onEditMasterResume={onEditMasterResume}
             onOpenSettings={onOpenSettings}
             masterResumeReady={masterResumeReady}
@@ -555,6 +512,17 @@ export function ChatPane({
               );
             if (message.kind === "generating")
               return <GeneratingCard key={message.id} label={message.label} done={message.done} />;
+            if (message.kind === "error")
+              return (
+                <div key={message.id} className="flex items-start gap-3.5">
+                  <div className="mt-0.5 grid h-[30px] w-[30px] flex-none place-items-center rounded-full bg-[var(--danger-soft)] text-[var(--danger)]">
+                    <CircleHelp size={14} strokeWidth={2} />
+                  </div>
+                  <div className="flex-1 rounded-[14px] border border-[rgba(181,57,47,0.2)] bg-[var(--danger-soft)] px-4 py-[11px] text-[14.5px] leading-[1.55] text-[var(--danger)]">
+                    {message.message}
+                  </div>
+                </div>
+              );
             return null;
           })}
           {isGenerating && <GeneratingCard label="réécriture des sections prouvées" done={false} />}

@@ -18,5 +18,5 @@ export const ResumeChangeAuditSchema = z.object({
 });
 
 export type ResumeChangeAudit = z.infer<typeof ResumeChangeAuditSchema>;
-export const ResumeAuditReportSchema = z.object({ totalChanges: z.number(), highRiskChanges: z.number(), changes: z.array(ResumeChangeAuditSchema) });
-export type ResumeAuditReport = z.infer<typeof ResumeAuditReportSchema>;
+export const ResumeAuditReportSchema = z.object({ totalChanges: z.number(), highRiskChanges: z.number(), changes: z.array(ResumeChangeAuditSchema) });export type ResumeAuditReport = z.infer<typeof ResumeAuditReportSchema>;
+

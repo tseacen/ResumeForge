@@ -12,5 +12,5 @@ export interface AnalysisResponse {
     html: string;
     audits: ResumeChangeAudit[];
   };
-  auditReport: ResumeAuditReport;
+  auditReport: AuditReport;
 }
