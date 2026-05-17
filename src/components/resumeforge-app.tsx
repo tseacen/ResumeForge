@@ -7,34 +7,29 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { PreviewPane } from "@/components/preview/preview-pane";
 import { SetupFlow } from "@/components/setup/setup-flow";
-import { FALLBACK_MODELS } from "@/lib/llm/models-client";
+import { analyzeJob, checkCli, scoreCompatibility } from "@/lib/llm/client";
+import { fetchModelsForProvider } from "@/lib/llm/models-client";
 import { devError, devLog, devTimer } from "@/lib/logger";
 import {
-  applyTailoredAnalysis,
-  buildSessionFromAnalysis,
-  completeSession,
-  summarizeSession,
+  allClarificationsAnswered,
+  answerClarification,
+  applyJobAnalysis,
+  applyScoreTable,
+  clearSessionThinking,
   initializeSession,
+  setSessionError,
+  setSessionThinking,
+  summarizeSession,
 } from "@/lib/resumeforge/agent";
 import { loadPersistedState, savePersistedState } from "@/lib/resumeforge/storage";
 import { type ResumeForgePersistedState, type ResumeForgeState } from "@/lib/schemas/app.schema";
 import { type AdaptationSession, type AppPhase } from "@/lib/schemas/session.schema";
 import { type AIProviderId, type ProviderStatus } from "@/lib/schemas/settings.schema";
-import { type AnalysisResponse } from "@/lib/types";
-
-interface GenerateApiResponse extends AnalysisResponse {
-  llm?: {
-    used: boolean;
-    providerName: string;
-    model?: string;
-    mock: boolean;
-    errors: string[];
-  };
-}
 
 const providerDefaults: Record<AIProviderId, ProviderStatus> = {
   "claude-code": "idle",
   "openai-codex": "idle",
+  "gemini-cli": "idle",
   mock: "idle",
 };
 
@@ -56,6 +51,20 @@ const initialState: ResumeForgeState = {
   error: null,
 };
 
+const ANALYZE_THINKING_PHASES = [
+  "Lecture de l'offre…",
+  "Repérage des compétences attendues…",
+  "Comparaison avec votre CV…",
+  "Détection des points à clarifier…",
+];
+
+const SCORE_THINKING_PHASES = [
+  "Pondération des axes de compatibilité…",
+  "Analyse des forces et écarts…",
+  "Identification des risques d'entretien…",
+  "Rédaction du verdict…",
+];
+
 type Action =
   | { type: "hydrate"; state: ResumeForgePersistedState }
   | { type: "provider/select"; provider: AIProviderId }
@@ -65,18 +74,9 @@ type Action =
   | { type: "master/save"; html: string }
   | { type: "master/edit" }
   | { type: "session/new" }
-  | { type: "session/create"; session: AdaptationSession }
-  | { type: "session/apply-tailored"; analysis: AnalysisResponse }
-  | {
-    type: "session/complete";
-    llmUsed?: boolean;
-    providerName?: string;
-    model?: string;
-  }
+  | { type: "session/replace"; session: AdaptationSession }
   | { type: "session/select"; id: string }
   | { type: "session/delete"; id: string }
-  | { type: "question/answer"; questionId: string; answer: string }
-  | { type: "preview/mode"; mode: ResumeForgeState["previewMode"] }
   | { type: "settings/open" }
   | { type: "error"; message: string | null };
 
@@ -127,7 +127,7 @@ function reducer(state: ResumeForgeState, action: Action): ResumeForgeState {
         settings,
         phase: phaseFromPersisted(action.state),
         providerStatus: providerDefaults,
-        previewMode: action.state.activeSession?.phase === "chat-adapted" ? "adapted" : "original",
+        previewMode: "original",
         error: null,
       };
     }
@@ -176,33 +176,14 @@ function reducer(state: ResumeForgeState, action: Action): ResumeForgeState {
         previewMode: "original",
         error: null,
       };
-    case "session/create":
+    case "session/replace":
       return {
         ...state,
         ...upsertSession(state, action.session),
-        phase: "chat-diagnostic",
+        phase: action.session.phase,
         previewMode: "original",
         error: null,
       };
-    case "session/apply-tailored": {
-      if (!state.activeSession) return state;
-      const updated = applyTailoredAnalysis(state.activeSession, action.analysis);
-      return { ...state, ...upsertSession(state, updated) };
-    }
-    case "session/complete": {
-      if (!state.activeSession) return state;
-      const completed = completeSession(state.activeSession, {
-        llmUsed: action.llmUsed,
-        providerName: action.providerName,
-        model: action.model,
-      });
-      return {
-        ...state,
-        ...upsertSession(state, completed),
-        phase: "chat-adapted",
-        previewMode: "adapted",
-      };
-    }
     case "session/select": {
       const selected = state.sessionArchive.find((session) => session.id === action.id);
       if (!selected) return state;
@@ -210,7 +191,7 @@ function reducer(state: ResumeForgeState, action: Action): ResumeForgeState {
         ...state,
         activeSession: selected,
         phase: selected.phase,
-        previewMode: selected.phase === "chat-adapted" ? "adapted" : "original",
+        previewMode: "original",
       };
     }
     case "session/delete": {
@@ -227,30 +208,10 @@ function reducer(state: ResumeForgeState, action: Action): ResumeForgeState {
             ? "ready-empty"
             : "setup-cv"
           : state.phase,
-        previewMode: wasActive ? "original" : state.previewMode,
+        previewMode: "original",
         error: null,
       };
     }
-    case "question/answer": {
-      if (!state.activeSession) return state;
-      const updatedQuestions = state.activeSession.validationQuestions.map((question) =>
-        question.id === action.questionId ? { ...question, answeredWith: action.answer } : question
-      );
-      const updatedMessages = state.activeSession.messages.map((message) =>
-        message.kind === "question" && message.question.id === action.questionId
-          ? { ...message, question: { ...message.question, answeredWith: action.answer } }
-          : message
-      );
-      const updatedSession = {
-        ...state.activeSession,
-        validationQuestions: updatedQuestions,
-        messages: updatedMessages,
-        updatedAt: new Date().toISOString(),
-      };
-      return { ...state, ...upsertSession(state, updatedSession) };
-    }
-    case "preview/mode":
-      return { ...state, previewMode: action.mode };
     case "settings/open":
       return { ...state, phase: "setup-ai" };
     case "error":
@@ -260,26 +221,15 @@ function reducer(state: ResumeForgeState, action: Action): ResumeForgeState {
   }
 }
 
-function downloadHtml(html: string, filename: string): void {
-  const blob = new Blob([html], { type: "text/html" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.click();
-  URL.revokeObjectURL(url);
-}
-
 export function ResumeForgeApp() {
   const [state, dispatch] = useReducer(reducer, initialState);
   const didLoadRef = useRef(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-
-  const providerModels: Record<AIProviderId, string[]> = {
-    "claude-code": FALLBACK_MODELS["claude-code"],
-    "openai-codex": FALLBACK_MODELS["openai-codex"],
+  const [providerModels, setProviderModels] = useState<Record<AIProviderId, string[]>>({
+    "claude-code": [],
+    "openai-codex": [],
+    "gemini-cli": [],
     mock: [],
-  };
+  });
 
   useEffect(() => {
     const persisted = loadPersistedState();
@@ -292,10 +242,53 @@ export function ResumeForgeApp() {
     savePersistedState(persistedFromState(state));
   }, [state]);
 
-  // Auto-test the currently selected provider on mount and whenever the user changes it,
-  // so the UI never shows a stale/optimistic "available" status.
+  // Récupère les modèles disponibles au montage pour tous les providers.
   useEffect(() => {
-    handleProviderTest(state.settings.selectedProvider);
+    let cancelled = false;
+    (async () => {
+      const [claude, openai, gemini] = await Promise.all([
+        fetchModelsForProvider("claude-code"),
+        fetchModelsForProvider("openai-codex"),
+        fetchModelsForProvider("gemini-cli"),
+      ]);
+      if (cancelled) return;
+      devLog("app", "models bootstrap", {
+        claude: { source: claude.source, count: claude.models.length, warning: claude.warning },
+        openai: { source: openai.source, count: openai.models.length, warning: openai.warning },
+        gemini: { source: gemini.source, count: gemini.models.length, warning: gemini.warning },
+      });
+      setProviderModels((prev) => ({
+        ...prev,
+        "claude-code": claude.models,
+        "openai-codex": openai.models,
+        "gemini-cli": gemini.models,
+      }));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Rafraîchit le provider sélectionné (test CLI + liste des modèles).
+  useEffect(() => {
+    const provider = state.settings.selectedProvider;
+    handleProviderTest(provider);
+    if (provider === "mock") return;
+    let cancelled = false;
+    (async () => {
+      const result = await fetchModelsForProvider(provider);
+      if (cancelled) return;
+      devLog("app", "models refresh", {
+        provider,
+        source: result.source,
+        count: result.models.length,
+        warning: result.warning,
+      });
+      setProviderModels((prev) => ({ ...prev, [provider]: result.models }));
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [state.settings.selectedProvider]);
 
   function handleSelectModel(provider: AIProviderId, model: string) {
@@ -305,14 +298,12 @@ export function ResumeForgeApp() {
   function handleProviderTest(provider: AIProviderId) {
     devLog("app", "provider test requested", { provider });
     dispatch({ type: "provider/status", provider, status: "checking" });
-    fetch(`/api/check-cli?provider=${encodeURIComponent(provider)}`)
-      .then((res) => res.json())
-      .then((data: { available: boolean }) => {
-        devLog("app", "provider test result", { provider, available: data.available });
+    checkCli(provider)
+      .then((available) => {
         dispatch({
           type: "provider/status",
           provider,
-          status: data.available ? "available" : "unavailable",
+          status: available ? "available" : "unavailable",
         });
       })
       .catch((err: unknown) => {
@@ -321,128 +312,236 @@ export function ResumeForgeApp() {
       });
   }
 
-  async function fetchAnalysis(resumeHtml: string, jobText: string): Promise<GenerateApiResponse> {
-    devLog("app", "POST /api/generate", {
-      provider: state.settings.selectedProvider,
-      model: state.settings.selectedModels?.[state.settings.selectedProvider],
-      resumeChars: resumeHtml.length,
-      jobChars: jobText.length,
-    });
-    const response = await fetch("/api/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        resumeHtml,
-        jobText,
+  // ──────────────────────────────────────────────────────────────────────────
+  // Thinking animation : tourne sur des labels prédéfinis pendant l'attente
+  // ──────────────────────────────────────────────────────────────────────────
+  const thinkingTimerRef = useRef<number | null>(null);
+
+  function startThinkingRotation(
+    sessionId: string,
+    phases: string[],
+    intervalMs: number,
+    targetPhase: AdaptationSession["phase"]
+  ): void {
+    let index = 0;
+    if (thinkingTimerRef.current !== null) {
+      window.clearInterval(thinkingTimerRef.current);
+      thinkingTimerRef.current = null;
+    }
+    thinkingTimerRef.current = window.setInterval(() => {
+      index = (index + 1) % phases.length;
+      // On lit l'état le plus récent via le closure ref pattern :
+      latestSessionRef.current = withThinkingLabel(latestSessionRef.current, sessionId, phases[index], targetPhase);
+      const updated = latestSessionRef.current;
+      if (updated) dispatch({ type: "session/replace", session: updated });
+    }, intervalMs);
+  }
+
+  function stopThinkingRotation(): void {
+    if (thinkingTimerRef.current !== null) {
+      window.clearInterval(thinkingTimerRef.current);
+      thinkingTimerRef.current = null;
+    }
+  }
+
+  // Référence vive vers la session active pour que les setInterval lisent toujours du frais.
+  const latestSessionRef = useRef<AdaptationSession | null>(null);
+  useEffect(() => {
+    latestSessionRef.current = state.activeSession;
+  }, [state.activeSession]);
+
+  function withThinkingLabel(
+    session: AdaptationSession | null,
+    sessionId: string,
+    label: string,
+    phase: AdaptationSession["phase"]
+  ): AdaptationSession | null {
+    if (!session || session.id !== sessionId) return session;
+    return setSessionThinking(session, label, phase);
+  }
+
+  function clearTransientMessages(session: AdaptationSession): AdaptationSession {
+    return {
+      ...session,
+      messages: session.messages.filter((m) => m.kind !== "thinking" && m.kind !== "error"),
+    };
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Étape 1 : analyse de l'offre + détection des clarifications
+  // ──────────────────────────────────────────────────────────────────────────
+  const [isBusy, setIsBusy] = useState(false);
+
+  async function runJobAnalysis(sessionForAnalysis: AdaptationSession) {
+    if (!state.masterResumeHtml) {
+      return;
+    }
+    setIsBusy(true);
+
+    const endTimer = devTimer("app", "analyze-job");
+    const session = setSessionThinking(
+      clearTransientMessages(sessionForAnalysis),
+      ANALYZE_THINKING_PHASES[0],
+      "chat-analyzing"
+    );
+    latestSessionRef.current = session;
+    dispatch({ type: "session/replace", session });
+
+    startThinkingRotation(session.id, ANALYZE_THINKING_PHASES, 1800, "chat-analyzing");
+
+    try {
+      const analysis = await analyzeJob({
+        resumeHtml: state.masterResumeHtml,
+        jobText: session.jobText,
         provider: state.settings.selectedProvider,
         model: state.settings.selectedModels?.[state.settings.selectedProvider],
-      }),
-    });
-    if (!response.ok) {
-      let detail = `HTTP ${response.status}`;
-      try {
-        const payload = (await response.json()) as { message?: string; error?: string };
-        if (payload.message) detail = payload.message;
-        else if (payload.error) detail = payload.error;
-      } catch {
-        const text = await response.text();
-        if (text) detail = text.slice(0, 300);
+      });
+      stopThinkingRotation();
+
+      const fresh = latestSessionRef.current;
+      if (!fresh || fresh.id !== session.id) return;
+      const next = applyJobAnalysis(clearSessionThinking(fresh), analysis);
+      latestSessionRef.current = next;
+      dispatch({ type: "session/replace", session: next });
+
+      if (next.phase === "chat-scoring") {
+        // Pas de questions : on enchaîne directement
+        await runScoring(next);
       }
-      devError("app", `/api/generate ${response.status}`, detail);
-      // Re-check the CLI status so the setup screen reflects reality
-      if (response.status === 503) {
+    } catch (err) {
+      stopThinkingRotation();
+      const message = err instanceof Error ? err.message : "L'IA n'a pas répondu.";
+      devError("app", "analyze-job failed", message);
+      if (state.providerStatus[state.settings.selectedProvider] !== "available") {
         handleProviderTest(state.settings.selectedProvider);
       }
-      throw new Error(detail);
+      const fresh = latestSessionRef.current;
+      if (fresh && fresh.id === session.id) {
+        const errored = setSessionError(clearSessionThinking(fresh), message);
+        latestSessionRef.current = errored;
+        dispatch({ type: "session/replace", session: errored });
+      }
+    } finally {
+      endTimer();
+      setIsBusy(false);
     }
-    const data = (await response.json()) as GenerateApiResponse;
-    devLog("app", "/api/generate response", {
-      score: data.score.global,
-      audits: data.tailored.audits.length,
-      llm: data.llm,
-    });
-    return data;
   }
 
   async function handleSubmitJob(jobText: string) {
     if (!state.masterResumeHtml) {
-      devLog("app", "submit blocked — no master resume");
       dispatch({ type: "session/new" });
       return;
     }
-
-    const endTimer = devTimer("app", "handleSubmitJob (diagnostic)");
-    setIsGenerating(true);
-    dispatch({ type: "error", message: null });
-
-    // On commence par initialiser la session dans le state pour pouvoir y injecter des messages d'erreur si la suite plante (l'IA ne répond par ex)
     const session = initializeSession(jobText);
-    dispatch({ type: "session/create", session });
-
-    try {
-      const analysis = await fetchAnalysis(state.masterResumeHtml, jobText);
-      const updatedSession = buildSessionFromAnalysis(jobText, analysis, session.id);
-      dispatch({ type: "session/create", session: updatedSession });
-      devLog("app", "session updated", {
-        id: updatedSession.id,
-        title: updatedSession.title,
-      });
-    } catch (error) {
-      devError("app", "submit failed", error instanceof Error ? error.message : error);
-
-      const errorMessage = error instanceof Error ? error.message : "Analyse impossible.";
-      const newMessages = session.messages
-        .filter(m => m.kind !== "assistant-typing")
-        .concat({ kind: "error", id: "error-1", message: errorMessage });
-
-      dispatch({
-        type: "session/create",
-        session: { ...session, messages: newMessages }
-      });
-    } finally {
-      endTimer();
-      setIsGenerating(false);
-    }
+    latestSessionRef.current = session;
+    dispatch({ type: "session/replace", session });
+    await runJobAnalysis(session);
   }
 
-  async function handleGenerate() {
-    if (!state.activeSession || state.activeSession.phase === "chat-adapted") return;
+  // ──────────────────────────────────────────────────────────────────────────
+  // Étape 2 : scoring (déclenché soit auto, soit après réponse aux questions)
+  // ──────────────────────────────────────────────────────────────────────────
+  async function runScoring(sessionForScoring: AdaptationSession) {
     if (!state.masterResumeHtml) return;
-    const endTimer = devTimer("app", "handleGenerate (tailoring)");
-    setIsGenerating(true);
-    dispatch({ type: "error", message: null });
+    setIsBusy(true);
+    const endTimer = devTimer("app", "score");
+
+    const scoringSession = setSessionThinking(
+      clearTransientMessages(sessionForScoring),
+      SCORE_THINKING_PHASES[0],
+      "chat-scoring"
+    );
+    latestSessionRef.current = scoringSession;
+    dispatch({ type: "session/replace", session: scoringSession });
+
+    startThinkingRotation(scoringSession.id, SCORE_THINKING_PHASES, 1800, "chat-scoring");
+
     try {
-      const analysis = await fetchAnalysis(state.masterResumeHtml, state.activeSession.jobText);
-      dispatch({ type: "session/apply-tailored", analysis });
-      dispatch({
-        type: "session/complete",
-        llmUsed: analysis.llm?.used ?? false,
-        providerName: analysis.llm?.providerName,
-        model: analysis.llm?.model,
+      const report = await scoreCompatibility({
+        resumeHtml: state.masterResumeHtml,
+        jobText: scoringSession.jobText,
+        jobAnalysis: {
+          jobTitle: scoringSession.jobTitle ?? scoringSession.title,
+          company: scoringSession.company ?? null,
+          summary: scoringSession.jobSummary ?? "",
+          clarifications: scoringSession.clarifications.map((q) => ({
+            id: q.id,
+            label: q.label,
+            question: q.question,
+            context: q.context,
+            responseMode: q.responseMode,
+            suggestedAnswers: q.suggestedAnswers,
+          })),
+        },
+        answers: scoringSession.clarifications
+          .filter((q): q is typeof q & { answeredWith: string } => Boolean(q.answeredWith))
+          .map((q) => ({ id: q.id, question: q.question, answer: q.answeredWith })),
+        provider: state.settings.selectedProvider,
+        model: state.settings.selectedModels?.[state.settings.selectedProvider],
       });
-      devLog("app", "generation completed", { llmUsed: analysis.llm?.used ?? false });
-    } catch (error) {
-      devError("app", "generate failed", error instanceof Error ? error.message : error);
-      dispatch({
-        type: "error",
-        message: error instanceof Error ? error.message : "Génération impossible.",
-      });
+      stopThinkingRotation();
+
+      const fresh = latestSessionRef.current;
+      if (!fresh || fresh.id !== scoringSession.id) return;
+      const scored = applyScoreTable(clearSessionThinking(fresh), report);
+      latestSessionRef.current = scored;
+      dispatch({ type: "session/replace", session: scored });
+    } catch (err) {
+      stopThinkingRotation();
+      const message = err instanceof Error ? err.message : "L'IA n'a pas répondu.";
+      devError("app", "score failed", message);
+      const fresh = latestSessionRef.current;
+      if (fresh && fresh.id === scoringSession.id) {
+        const errored = setSessionError(clearSessionThinking(fresh), message);
+        latestSessionRef.current = errored;
+        dispatch({ type: "session/replace", session: errored });
+      }
     } finally {
       endTimer();
-      setIsGenerating(false);
+      setIsBusy(false);
     }
   }
 
-  function handleExport() {
-    if (!state.activeSession || state.activeSession.phase !== "chat-adapted" || !state.activeSession.tailoredHtml) return;
-    downloadHtml(state.activeSession.tailoredHtml, "resumeforge-adapted-cv.html");
+  function handleAnswerClarification(questionId: string, answer: string) {
+    const current = latestSessionRef.current;
+    if (!current) return;
+    const updated = answerClarification(current, questionId, answer);
+    latestSessionRef.current = updated;
+    dispatch({ type: "session/replace", session: updated });
+
+    if (allClarificationsAnswered(updated) && updated.phase === "chat-clarifying") {
+      runScoring(updated);
+    }
+  }
+
+  function handleAdaptCv() {
+    // Réservé pour l'étape suivante (génération du CV adapté).
+    devLog("app", "adapt CV requested — pas encore implémenté");
+  }
+
+  function handleRetry() {
+    if (isBusy || !state.masterResumeHtml) return;
+    const current = latestSessionRef.current;
+    if (!current) return;
+    const hasError = current.messages.some((message) => message.kind === "error");
+    if (!hasError) return;
+
+    if (current.phase === "chat-analyzing") {
+      void runJobAnalysis(current);
+      return;
+    }
+
+    if (current.phase === "chat-scoring") {
+      void runScoring(current);
+      return;
+    }
+
+    if (current.phase === "chat-clarifying" && allClarificationsAnswered(current)) {
+      void runScoring(current);
+    }
   }
 
   const isSetup = state.phase === "setup-ai" || state.phase === "setup-cv";
-  const originalHtml = state.masterResumeHtml;
-  const adaptedHtml = state.activeSession?.tailoredHtml ?? null;
-  const audits = state.activeSession?.audits ?? [];
-  const adaptedReady = state.activeSession?.phase === "chat-adapted";
   const providerReady = state.providerStatus[state.settings.selectedProvider] === "available";
 
   return (
@@ -460,11 +559,12 @@ export function ResumeForgeApp() {
           phase={state.phase}
           title={state.activeSession?.title ?? null}
           activeModel={
-            state.settings.selectedModels?.[state.settings.selectedProvider] ?? state.settings.selectedProvider
+            state.settings.selectedModels?.[state.settings.selectedProvider] ??
+            state.settings.selectedProvider
           }
-          canExport={Boolean(adaptedReady)}
+          canExport={false}
           onReset={() => dispatch({ type: "session/new" })}
-          onExport={handleExport}
+          onExport={() => {}}
         />
         {isSetup ? (
           <SetupFlow
@@ -482,38 +582,28 @@ export function ResumeForgeApp() {
           />
         ) : (
           <main className="flex flex-1 overflow-y-auto p-0">
-            {state.error && (
-              <div className="absolute top-[76px] left-[260px] z-20 rounded-[10px] border border-[rgba(181,57,47,0.2)] bg-[var(--danger-soft)] px-3 py-2.5 text-[var(--danger)]">
-                {state.error}
-              </div>
-            )}
             <div className="grid h-full min-h-0 flex-1 grid-cols-[minmax(0,1fr)_minmax(320px,440px)] max-[980px]:grid-cols-1">
               <ChatPane
                 session={state.activeSession}
                 masterResumeReady={Boolean(state.masterResumeHtml)}
                 providerReady={providerReady}
                 providerLabel={
-                  state.settings.selectedProvider === "claude-code" ? "Claude Code" : "OpenAI Codex"
+                  state.settings.selectedProvider === "claude-code"
+                    ? "Claude Code"
+                    : state.settings.selectedProvider === "openai-codex"
+                      ? "OpenAI Codex"
+                      : "Gemini CLI"
                 }
-                isGenerating={isGenerating}
+                isBusy={isBusy}
                 onSubmitJob={handleSubmitJob}
-                onGenerate={handleGenerate}
-                onAnswerQuestion={(questionId, answer) =>
-                  dispatch({ type: "question/answer", questionId, answer })
-                }
+                onAnswerQuestion={handleAnswerClarification}
+                onAdaptCv={handleAdaptCv}
+                onRetry={handleRetry}
                 onEditMasterResume={() => dispatch({ type: "master/edit" })}
                 onOpenSettings={() => dispatch({ type: "settings/open" })}
               />
               {state.activeSession && (
-                <PreviewPane
-                  originalHtml={originalHtml}
-                  adaptedHtml={adaptedHtml}
-                  audits={audits}
-                  mode={state.previewMode}
-                  adaptedReady={Boolean(adaptedReady)}
-                  onModeChange={(mode) => dispatch({ type: "preview/mode", mode })}
-                  onExportHtml={handleExport}
-                />
+                <PreviewPane originalHtml={state.masterResumeHtml} />
               )}
             </div>
           </main>

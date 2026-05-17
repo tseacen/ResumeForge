@@ -1,36 +1,51 @@
 import { z } from "zod";
 
-export const ChatStatRowSchema = z.object({
+export const ScoreTableRowSchema = z.object({
   label: z.string(),
   value: z.number().min(0).max(100),
+  rationale: z.string(),
   tone: z.enum(["good", "warn", "bad"]),
-  icon: z.enum(["target", "briefcase", "tag", "layers", "chart"]),
 });
 
-export type ChatStatRow = z.infer<typeof ChatStatRowSchema>;
+export type ScoreTableRow = z.infer<typeof ScoreTableRowSchema>;
 
-export const ChatNeedSchema = z.object({
+export const ScoreTableNeedSchema = z.object({
   term: z.string(),
   level: z.enum(["required", "preferred", "bonus"]),
+  reason: z.string().optional(),
 });
 
-export type ChatNeed = z.infer<typeof ChatNeedSchema>;
+export type ScoreTableNeed = z.infer<typeof ScoreTableNeedSchema>;
 
-export const ValidationQuestionSchema = z.object({
+export const ScoreTableSchema = z.object({
+  global: z.number().min(0).max(100),
+  riskLevel: z.enum(["low", "medium", "high"]),
+  verdict: z.string(),
+  rows: z.array(ScoreTableRowSchema),
+  strengths: z.array(z.string()).default([]),
+  weaknesses: z.array(z.string()).default([]),
+  blockers: z.array(z.string()).default([]),
+  missingKeywords: z.array(ScoreTableNeedSchema).default([]),
+  interviewRisks: z.array(z.string()).default([]),
+});
+
+export type ScoreTable = z.infer<typeof ScoreTableSchema>;
+
+export const ClarificationQuestionSchema = z.object({
   id: z.string(),
   label: z.string(),
   question: z.string(),
   context: z.string(),
+  responseMode: z.enum(["single", "multiple"]).default("single"),
   suggestedAnswers: z.array(z.string()).default([]),
   answeredWith: z.string().optional(),
 });
 
-export type ValidationQuestion = z.infer<typeof ValidationQuestionSchema>;
+export type ClarificationQuestion = z.infer<typeof ClarificationQuestionSchema>;
 
 export const ChatMessageSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("step"), id: z.string(), label: z.string(), done: z.boolean() }),
   z.object({ kind: z.literal("assistant"), id: z.string(), body: z.array(z.string()) }),
-  z.object({ kind: z.literal("assistant-typing"), id: z.string(), label: z.string() }),
   z.object({
     kind: z.literal("user"),
     id: z.string(),
@@ -38,16 +53,20 @@ export const ChatMessageSchema = z.discriminatedUnion("kind", [
     truncated: z.boolean().default(false),
   }),
   z.object({
-    kind: z.literal("stats"),
+    kind: z.literal("thinking"),
     id: z.string(),
-    title: z.string(),
-    score: z.number().min(0).max(100),
-    delta: z.number().optional(),
-    rows: z.array(ChatStatRowSchema),
-    needs: z.array(ChatNeedSchema).default([]),
+    label: z.string(),
   }),
-  z.object({ kind: z.literal("question"), id: z.string(), question: ValidationQuestionSchema }),
-  z.object({ kind: z.literal("generating"), id: z.string(), label: z.string(), done: z.boolean() }),
+  z.object({
+    kind: z.literal("clarifications"),
+    id: z.string(),
+    questions: z.array(ClarificationQuestionSchema),
+  }),
+  z.object({
+    kind: z.literal("score-table"),
+    id: z.string(),
+    table: ScoreTableSchema,
+  }),
   z.object({ kind: z.literal("error"), id: z.string(), message: z.string() }),
 ]);
 

@@ -163,3 +163,42 @@ export class CodexCliProvider implements LLMProvider {
     return { content, model: this.model ?? "codex-cli" };
   }
 }
+
+export class GeminiCliProvider implements LLMProvider {
+  readonly name = "gemini-cli";
+  readonly isAvailable = true;
+  private readonly model?: string;
+  private readonly timeoutMs: number;
+
+  constructor(model?: string, timeoutMs = DEFAULT_TIMEOUT_MS) {
+    this.model = model;
+    this.timeoutMs = timeoutMs;
+  }
+
+  async complete(params: LLMCompletionParams): Promise<LLMCompletionResult> {
+    const prompt = combineMessages(params.messages);
+    // gemini CLI attend une valeur pour -p/--prompt (stdin seul ne suffit pas).
+    const args: string[] = [];
+    if (this.model) args.push("--model", this.model);
+    args.push("-p", prompt);
+
+    devLog("llm/gemini-cli", "invoking gemini CLI", {
+      model: this.model,
+      promptChars: prompt.length,
+    });
+
+    let result: SpawnResult;
+    try {
+      result = await spawnWithStdin("gemini", args, null, this.timeoutMs);
+    } catch (err) {
+      devError("llm/gemini-cli", "spawn failed", err instanceof Error ? err.message : err);
+      throw err;
+    }
+
+    const content = result.stdout.trim();
+    if (!content) {
+      throw new Error("gemini CLI returned empty output");
+    }
+    return { content, model: this.model ?? "gemini-cli" };
+  }
+}
