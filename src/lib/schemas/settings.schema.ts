@@ -10,6 +10,7 @@ export const AppSettingsSchema = z.object({
   selectedProvider: AIProviderIdSchema.default("claude-code"),
   onboardingCompleted: z.boolean().default(false),
   language: z.enum(["fr", "en"]).default("fr"),
+  selectedModels: z.record(z.string(), z.string()).default({}),
 });
 
 export type AppSettings = z.infer<typeof AppSettingsSchema>;

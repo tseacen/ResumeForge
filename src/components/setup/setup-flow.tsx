@@ -1,9 +1,21 @@
 "use client";
 
-import { ArrowRight, Check, Code2, Eye, FileUp, TestTube, Terminal } from "lucide-react";
+import {
+  ArrowRight,
+  Check,
+  ChevronDown,
+  Code2,
+  Eye,
+  FileUp,
+  KeyRound,
+  RefreshCw,
+  Terminal,
+  TestTube,
+} from "lucide-react";
 import { useRef, useState } from "react";
 
 import { parseResumeHtml } from "@/lib/parsers/parse-resume-html";
+import { FALLBACK_MODELS } from "@/lib/llm/models-client";
 import { SAMPLE_RESUME_HTML } from "@/lib/resumeforge/sample-data";
 import { type AIProviderId, type ProviderStatus } from "@/lib/schemas/settings.schema";
 
@@ -31,37 +43,49 @@ const providerStatusClass: Record<ProviderStatus, string> = {
     "border-[rgba(181,57,47,0.22)] bg-[var(--danger-soft)] text-[var(--danger)] [&>span]:bg-[var(--danger)]",
 };
 
-interface SetupFlowProps {
+type ModelsStatus = "idle" | "loading" | "loaded" | "error";
+
+export interface SetupFlowProps {
   step: "setup-ai" | "setup-cv";
   selectedProvider: AIProviderId;
   providerStatus: Record<AIProviderId, ProviderStatus>;
+  providerApiKeys: Record<AIProviderId, string>;
+  providerModels: Record<AIProviderId, string[]>;
+  providerModelsStatus: Record<AIProviderId, ModelsStatus>;
+  selectedModels: Record<string, string>;
   onSelectProvider: (provider: AIProviderId) => void;
   onTestProvider: (provider: AIProviderId) => void;
+  onApiKeyChange: (provider: AIProviderId, key: string) => void;
+  onFetchModels: (provider: AIProviderId) => void;
+  onSelectModel: (provider: AIProviderId, model: string) => void;
   onContinueFromAI: () => void;
   onBackToAI: () => void;
   onSaveMasterResume: (html: string) => void;
 }
 
-const providers: Array<{
-  id: AIProviderId;
+const providerMeta: Array<{
+  id: Exclude<AIProviderId, "mock">;
   name: string;
   sub: string;
   desc: string;
   install: string;
+  keyPlaceholder: string;
 }> = [
   {
     id: "claude-code",
     name: "Claude Code",
-    sub: "claude-sonnet · CLI",
+    sub: "Anthropic · CLI",
     desc: "Précis, prudent, excellent pour raisonner sur le contexte avant de réécrire.",
     install: "npm install -g @anthropic/claude-code",
+    keyPlaceholder: "sk-ant-api03-…",
   },
   {
     id: "openai-codex",
     name: "OpenAI Codex",
-    sub: "gpt-5-codex · CLI",
+    sub: "OpenAI · CLI",
     desc: "Rapide et créatif pour itérer plusieurs variantes de formulation.",
     install: "npm install -g @openai/codex",
+    keyPlaceholder: "sk-proj-…",
   },
 ];
 
@@ -107,27 +131,84 @@ function StepRail({ current }: { current: 1 | 2 | 3 }) {
   );
 }
 
+function ModelSelect({
+  id,
+  models,
+  selected,
+  onSelect,
+}: {
+  id: AIProviderId;
+  models: string[];
+  selected: string;
+  onSelect: (model: string) => void;
+}) {
+  return (
+    <div className="relative">
+      <select
+        className="w-full appearance-none rounded-[8px] border border-[var(--line)] bg-[var(--card)] py-2 pr-8 pl-3 font-[family-name:var(--font-mono)] text-[12px] text-[var(--ink-2)] outline-none transition-colors focus:border-[var(--accent)] focus:shadow-[var(--focus)]"
+        value={selected}
+        onChange={(e) => {
+          e.stopPropagation();
+          onSelect(e.target.value);
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {models.map((m) => (
+          <option key={m} value={m}>
+            {m}
+          </option>
+        ))}
+        <option value="__custom__">Saisir un modèle…</option>
+      </select>
+      <ChevronDown
+        className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-[var(--muted)]"
+        size={13}
+      />
+    </div>
+  );
+}
+
 function ProviderCard({
   id,
   name,
   sub,
   desc,
   install,
+  keyPlaceholder,
   selected,
   status,
+  apiKey,
+  models,
+  modelsStatus,
+  selectedModel,
   onSelect,
   onTest,
+  onApiKeyChange,
+  onFetchModels,
+  onSelectModel,
 }: {
   id: AIProviderId;
   name: string;
   sub: string;
   desc: string;
   install: string;
+  keyPlaceholder: string;
   selected: boolean;
   status: ProviderStatus;
+  apiKey: string;
+  models: string[];
+  modelsStatus: ModelsStatus;
+  selectedModel: string;
   onSelect: (provider: AIProviderId) => void;
   onTest: (provider: AIProviderId) => void;
+  onApiKeyChange: (provider: AIProviderId, key: string) => void;
+  onFetchModels: (provider: AIProviderId) => void;
+  onSelectModel: (provider: AIProviderId, model: string) => void;
 }) {
+  const [showKey, setShowKey] = useState(false);
+  const [customModel, setCustomModel] = useState("");
+  const isCustom = selectedModel === "__custom__";
+
   return (
     <div
       className={`relative w-full cursor-pointer rounded-[14px] border bg-[var(--card)] px-[22px] pt-5 pb-[18px] text-left shadow-[var(--shadow-sm)] transition-all duration-180 hover:-translate-y-0.5 hover:border-[var(--line-2)] hover:shadow-[var(--shadow-md)] ${
@@ -149,6 +230,7 @@ function ProviderCard({
       >
         <Check size={13} strokeWidth={2.4} />
       </div>
+
       <div className="mb-3.5 flex items-center gap-3.5">
         <div
           className={`grid h-11 w-11 flex-none place-items-center rounded-[10px] ${
@@ -168,7 +250,9 @@ function ProviderCard({
           </div>
         </div>
       </div>
+
       <p className="m-0 mb-4 text-[13.5px] leading-normal text-[var(--ink-3)]">{desc}</p>
+
       <div className="flex flex-wrap items-center gap-2">
         <span
           className={`inline-flex items-center gap-2 rounded-full border px-[11px] py-[5px] text-[12.5px] font-medium ${providerStatusClass[status]}`}
@@ -177,7 +261,7 @@ function ProviderCard({
           {status === "idle"
             ? "Non testé"
             : status === "checking"
-              ? "Test en cours..."
+              ? "Test en cours…"
               : status === "available"
                 ? "Disponible · CLI détecté"
                 : "CLI introuvable"}
@@ -185,18 +269,102 @@ function ProviderCard({
         <button
           className={smallButtonClass}
           type="button"
-          onClick={(event) => {
-            event.stopPropagation();
+          onClick={(e) => {
+            e.stopPropagation();
             onTest(id);
           }}
         >
           <TestTube size={12} /> Tester
         </button>
       </div>
+
       {status === "unavailable" && (
         <code className="mt-2.5 block rounded-md border border-[var(--line)] bg-[var(--bg-2)] px-2 py-1.5 font-[family-name:var(--font-mono)] text-[11px] text-[var(--muted)]">
           {install}
         </code>
+      )}
+
+      {/* Model configuration — shown when card is selected */}
+      {selected && (
+        <div
+          className="mt-4 border-t border-dashed border-[var(--line)] pt-4"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* API key row */}
+          <div className="mb-3">
+            <label className="mb-1.5 flex items-center gap-1.5 text-[11.5px] font-semibold text-[var(--muted)] uppercase tracking-[0.1em]">
+              <KeyRound size={11} /> Clé API
+            </label>
+            <div className="flex gap-1.5">
+              <div className="relative flex-1">
+                <input
+                  type={showKey ? "text" : "password"}
+                  className="w-full rounded-[8px] border border-[var(--line)] bg-[var(--card-2)] py-[7px] pr-8 pl-3 font-[family-name:var(--font-mono)] text-[12px] text-[var(--ink-2)] outline-none transition-colors focus:border-[var(--accent)] focus:bg-[var(--card)] focus:shadow-[var(--focus)]"
+                  placeholder={keyPlaceholder}
+                  value={apiKey}
+                  onChange={(e) => onApiKeyChange(id, e.target.value)}
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+                <button
+                  type="button"
+                  className="absolute top-1/2 right-2 -translate-y-1/2 text-[var(--muted)] hover:text-[var(--ink)]"
+                  onClick={() => setShowKey((v) => !v)}
+                  tabIndex={-1}
+                >
+                  <Eye size={13} />
+                </button>
+              </div>
+              <button
+                className={`${smallButtonClass} shrink-0`}
+                type="button"
+                disabled={!apiKey.trim() || modelsStatus === "loading"}
+                onClick={() => onFetchModels(id)}
+              >
+                <RefreshCw
+                  size={12}
+                  className={modelsStatus === "loading" ? "animate-spin" : ""}
+                />
+                {modelsStatus === "loading" ? "Chargement…" : "Actualiser"}
+              </button>
+            </div>
+            {modelsStatus === "error" && (
+              <p className="mt-1.5 text-[12px] text-[var(--danger)]">
+                Clé invalide ou erreur réseau — liste locale utilisée.
+              </p>
+            )}
+            {modelsStatus === "loaded" && (
+              <p className="mt-1.5 text-[12px] text-[var(--success)]">
+                {models.length} modèles chargés depuis l'API.
+              </p>
+            )}
+          </div>
+
+          {/* Model selector */}
+          <div>
+            <label className="mb-1.5 flex items-center gap-1.5 text-[11.5px] font-semibold text-[var(--muted)] uppercase tracking-[0.1em]">
+              <Terminal size={11} /> Modèle
+            </label>
+            <ModelSelect
+              id={id}
+              models={models}
+              selected={selectedModel}
+              onSelect={(m) => onSelectModel(id, m)}
+            />
+            {isCustom && (
+              <input
+                type="text"
+                className="mt-1.5 w-full rounded-[8px] border border-[var(--line)] bg-[var(--card-2)] px-3 py-[7px] font-[family-name:var(--font-mono)] text-[12px] text-[var(--ink-2)] outline-none transition-colors focus:border-[var(--accent)] focus:bg-[var(--card)] focus:shadow-[var(--focus)]"
+                placeholder="nom-du-modèle"
+                value={customModel}
+                onChange={(e) => {
+                  setCustomModel(e.target.value);
+                  if (e.target.value) onSelectModel(id, e.target.value);
+                }}
+              />
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
@@ -221,14 +389,21 @@ function SetupAI(props: SetupFlowProps) {
       </div>
       <StepRail current={1} />
       <div className="mt-2 grid grid-cols-2 gap-3.5 max-[980px]:grid-cols-1">
-        {providers.map((provider) => (
+        {providerMeta.map((provider) => (
           <ProviderCard
             key={provider.id}
             {...provider}
             selected={props.selectedProvider === provider.id}
             status={props.providerStatus[provider.id]}
+            apiKey={props.providerApiKeys[provider.id]}
+            models={props.providerModels[provider.id]}
+            modelsStatus={props.providerModelsStatus[provider.id]}
+            selectedModel={props.selectedModels[provider.id] ?? props.providerModels[provider.id][0] ?? ""}
             onSelect={props.onSelectProvider}
             onTest={props.onTestProvider}
+            onApiKeyChange={props.onApiKeyChange}
+            onFetchModels={props.onFetchModels}
+            onSelectModel={props.onSelectModel}
           />
         ))}
       </div>
@@ -238,8 +413,8 @@ function SetupAI(props: SetupFlowProps) {
           size={15}
         />
         <span>
-          Vos clés restent dans la configuration du CLI choisi. Le mode local déterministe reste
-          disponible pour travailler hors-ligne.
+          Votre clé API reste dans la mémoire de l&apos;application. Elle n&apos;est pas stockée
+          sur disque. Le mode local déterministe reste disponible hors-ligne.
         </span>
       </div>
       <div className="mt-7 flex justify-end gap-2.5">
@@ -371,7 +546,7 @@ function SetupCV({ onBackToAI, onSaveMasterResume }: SetupFlowProps) {
                 </span>
               </>
             ) : (
-              "En attente d'un CV..."
+              "En attente d'un CV…"
             )}
           </div>
           <button className={smallButtonClass} type="button" disabled={!hasContent}>
