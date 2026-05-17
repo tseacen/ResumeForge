@@ -1,10 +1,10 @@
-# CLAUDE.md — CV Tailoring Agent POC
+# CLAUDE.md — ResumeForge CV Tailoring Agent POC
 
 ## Purpose
 
 This file gives Claude Code persistent project instructions for building a local-first desktop app that analyzes, scores, and improves a resume against a job offer without inventing facts.
 
-The project is a POC for a Tauri + Next.js + TypeScript + Tailwind application.
+The project is a POC for a Tauri + Next.js + TypeScript + Tailwind application with a Tailwind-first ResumeForge v2 visual system.
 
 The user provides:
 
@@ -20,6 +20,7 @@ The app must:
 - Produce compatibility statistics.
 - Identify strengths, weaknesses, blockers, missing keywords, and interview risks.
 - Generate an improved resume version adapted to the offer.
+- Present the product as a chat-driven CV adaptation workspace with a live preview pane.
 - Never fabricate skills, jobs, responsibilities, degrees, certifications, metrics, tools, or achievements.
 
 ## Non-negotiable product rules
@@ -148,8 +149,8 @@ Use these technologies unless the user asks otherwise:
 - Tauri for desktop shell.
 - Next.js for UI.
 - TypeScript everywhere.
-- Tailwind CSS for styling.
-- shadcn/ui for base components.
+- Tailwind CSS v4 for the active UI.
+- Minimal CSS in `src/app/globals.css` for design tokens, base styles, keyframes, scrollbar styling, and CV paper/diff rendering.
 - Zod for schemas and validation.
 - pnpm as package manager.
 - Vitest for unit tests.
@@ -157,6 +158,8 @@ Use these technologies unless the user asks otherwise:
 - SQLite or local JSON files for the first POC.
 - Cheerio for HTML parsing.
 - Vercel AI SDK or a small provider adapter layer for LLM calls.
+
+Do not reintroduce shadcn runtime primitives for the current UI unless the user explicitly asks. The active app intentionally removed `src/components/ui/*`, `components.json`, `clsx`, `tailwind-merge`, `class-variance-authority`, and `@base-ui/react`.
 
 ## Bootstrap commands
 
@@ -166,7 +169,7 @@ Suggested bootstrap flow:
 
 ```bash
 # 1. Create the Next.js app
-pnpm create next-app@latest cv-tailor-agent \
+pnpm create next-app@latest resume-forge \
   --ts \
   --tailwind \
   --eslint \
@@ -174,19 +177,13 @@ pnpm create next-app@latest cv-tailor-agent \
   --src-dir \
   --import-alias "@/*"
 
-cd cv-tailor-agent
+cd resume-forge
 
 # 2. Install core dependencies
-pnpm add zod cheerio nanoid clsx tailwind-merge lucide-react
+pnpm add zod cheerio nanoid lucide-react domhandler
 pnpm add -D vitest tsx @types/node
 
-# 3. Add shadcn/ui
-pnpm dlx shadcn@latest init
-
-# 4. Add useful shadcn components
-pnpm dlx shadcn@latest add button card input textarea badge tabs table separator alert dialog dropdown-menu scroll-area
-
-# 5. Add Tauri
+# 3. Add Tauri
 pnpm add -D @tauri-apps/cli
 pnpm tauri init
 ```
@@ -203,7 +200,7 @@ rtk git status
 ## Target repository structure
 
 ```txt
-cv-tailor-agent/
+resume-forge/
 ├─ CLAUDE.md
 ├─ AGENTS.md
 ├─ MEMORY.md
@@ -215,17 +212,27 @@ cv-tailor-agent/
 │  │  ├─ layout.tsx
 │  │  └─ globals.css
 │  ├─ components/
-│  │  ├─ resume-input.tsx
-│  │  ├─ job-input.tsx
-│  │  ├─ compatibility-report.tsx
-│  │  ├─ resume-preview.tsx
-│  │  └─ audit-panel.tsx
+│  │  ├─ resumeforge-app.tsx
+│  │  ├─ chat/
+│  │  │  └─ chat-pane.tsx
+│  │  ├─ layout/
+│  │  │  ├─ sidebar.tsx
+│  │  │  └─ topbar.tsx
+│  │  ├─ preview/
+│  │  │  └─ preview-pane.tsx
+│  │  └─ setup/
+│  │     └─ setup-flow.tsx
 │  ├─ lib/
 │  │  ├─ schemas/
 │  │  │  ├─ resume.schema.ts
 │  │  │  ├─ job.schema.ts
 │  │  │  ├─ score.schema.ts
-│  │  │  └─ audit.schema.ts
+│  │  │  ├─ audit.schema.ts
+│  │  │  ├─ app.schema.ts
+│  │  │  ├─ chat.schema.ts
+│  │  │  ├─ cv-document.schema.ts
+│  │  │  ├─ session.schema.ts
+│  │  │  └─ settings.schema.ts
 │  │  ├─ parsers/
 │  │  │  ├─ parse-resume-html.ts
 │  │  │  └─ parse-job-text.ts
@@ -239,8 +246,11 @@ cv-tailor-agent/
 │  │  │  ├─ openai-provider.ts
 │  │  │  ├─ anthropic-provider.ts
 │  │  │  └─ mock-provider.ts
-│  │  └─ storage/
-│  │     └─ local-store.ts
+│  │  └─ resumeforge/
+│  │     ├─ agent.ts
+│  │     ├─ cv-document.ts
+│  │     ├─ sample-data.ts
+│  │     └─ storage.ts
 │  └─ tests/
 │     ├─ parse-resume-html.test.ts
 │     ├─ parse-job-text.test.ts
@@ -271,9 +281,9 @@ The POC must include:
 5. Compatibility scoring.
 6. Recruiter-style report.
 7. Generated improved resume in HTML.
-8. Anti-hallucination audit panel.
+8. Anti-hallucination audit trail surfaced in the product flow.
 9. Local save/load of at least one analysis.
-10. Clean, responsive UI.
+10. Mockup-faithful, responsive ResumeForge v2 UI.
 
 Do not start with:
 
@@ -420,39 +430,62 @@ Use a mock provider for tests.
 
 ## UI requirements
 
-The POC UI should have a clean SaaS/product style.
+The POC UI should follow the ResumeForge v2 mockup in `ResumeForge-2.zip`.
 
-Main page layout:
+Current product flow:
 
-1. Header with product name and short value proposition.
-2. Two-column input area:
-   - left: Resume HTML
-   - right: Job offer text
-3. Analyze button.
-4. Compatibility dashboard:
-   - global score
-   - ATS score
-   - technical fit
-   - seniority fit
-   - risk level
-5. Tabs:
-   - Report
-   - Improved CV
-   - Audit
-   - Missing Keywords
-6. Export buttons:
-   - Copy HTML
-   - Download HTML
-   - Download JSON report
+1. Left sidebar:
+   - product mark and `ResumeForge` brand
+   - `Nouvelle adaptation` action
+   - recent adaptation sessions
+   - local user/settings footer
+2. Compact topbar:
+   - setup title during onboarding
+   - active adaptation title after analysis
+   - history/export/reset actions when relevant
+3. Setup phase:
+   - step rail with `Configurer l'IA`, `Ajouter le CV de base`, `Prêt à adapter`
+   - Claude Code and OpenAI Codex provider cards
+   - local/deterministic fallback remains available in logic but should not visually disturb the mockup layout
+   - master CV import through pasted HTML or local file
+4. Chat phase:
+   - centered welcome prompt
+   - job-offer paste action
+   - assistant/user message stream
+   - inline stats card
+   - inline validation questions
+   - generation progress and CTA
+   - sticky composer
+5. Preview phase:
+   - right-side CV pane
+   - Original / Adapted / Diff modes
+   - export action for adapted HTML
 
-Use shadcn components and Tailwind. Keep the design minimal, modern, and readable.
+Visual direction:
+
+- warm cream background
+- terracotta accent
+- Source Serif-like display typography
+- compact Claude-style cards
+- subtle borders and shadows
+- no purple/dark-mode bias
+- avoid returning to the old tabbed dashboard
+
+Do not reintroduce the removed legacy components unless explicitly requested:
+
+- `report-tab`
+- `resume-preview`
+- `audit-panel`
+- `missing-keywords`
+- `score-dashboard`
+- `src/components/ui/*`
 
 ## Implementation roadmap
 
 ### Phase 0 — Project setup
 
 - Create Next.js app.
-- Add Tailwind, shadcn/ui, Zod, Vitest, Cheerio.
+- Add Tailwind, Zod, Vitest, Cheerio, nanoid, lucide-react.
 - Add Tauri.
 - Create base layout.
 - Add lint/test/build scripts.
@@ -499,12 +532,19 @@ rtk pnpm build
 
 ### Phase 5 — UI integration
 
-- Build input forms.
-- Display parsed resume/job JSON in debug mode.
-- Display compatibility report.
-- Display improved CV preview.
-- Display audit panel.
-- Add copy/download actions.
+- Build the ResumeForge v2 app shell in `src/components/resumeforge-app.tsx`.
+- Keep layout components in `src/components/layout/`.
+- Keep setup components in `src/components/setup/`.
+- Keep chat components in `src/components/chat/`.
+- Keep preview components in `src/components/preview/`.
+- Keep mockup-specific layout and component styling in Tailwind class names where possible.
+- Keep `src/app/globals.css` limited to tokens, base styles, keyframes, scrollbar styling, and CV paper/diff rendering.
+- Display compatibility diagnostics as inline chat cards.
+- Display validation questions as inline chat cards.
+- Display the improved CV in the right preview pane.
+- Add Original / Adapted / Diff preview modes.
+- Add export/download actions.
+- Preserve visual fidelity to `ResumeForge-2.zip`.
 
 ### Phase 6 — Tauri packaging
 
@@ -520,7 +560,7 @@ Create these files under `.claude/commands/`.
 ### `.claude/commands/analyze-cv.md`
 
 ```md
-Analyze the current CV Tailoring Agent implementation.
+Analyze the current ResumeForge implementation.
 
 Focus on:
 
@@ -530,6 +570,7 @@ Focus on:
 - scoring logic
 - missing tests
 - UI usability
+- mockup fidelity against `ResumeForge-2.zip`
 
 Use RTK for commands when available.
 Run:
@@ -627,6 +668,7 @@ The POC is considered functional when:
 - The app generates a safer improved CV HTML.
 - The app shows an audit trail proving what changed and why.
 - Unsupported claims are blocked or marked for validation.
+- The UI remains faithful to the ResumeForge v2 mockup direction.
 - Main logic has unit tests.
 - The app runs locally with `pnpm dev`.
 - The desktop shell runs with Tauri.
@@ -641,7 +683,7 @@ Prefer:
 - simple, functional, tested flows
 - clear schemas
 - strong truthfulness guardrails
-- readable UI
+- mockup-faithful UI
 - local-first behavior
 
 Avoid:

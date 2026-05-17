@@ -11,13 +11,29 @@ The user imports a current CV as HTML and pastes a job offer. The app analyzes c
 - Tauri
 - Next.js
 - TypeScript
-- Tailwind
-- shadcn/ui
+- Tailwind CSS v4
+- Minimal global CSS for tokens, base styles, keyframes, and CV paper rendering
 - Zod
 - pnpm
 - Vitest
 - Cheerio
 - Local storage first
+
+## Current implementation direction
+
+The app has been refactored toward the `ResumeForge-2.zip` mockup:
+
+- left sidebar with recent adaptations
+- compact topbar
+- onboarding/setup flow for AI provider and master CV
+- chat-first job-offer analysis flow
+- inline diagnostic, question, and generation cards
+- right-side CV preview with Original / Adapted / Diff tabs
+- localStorage persistence via `src/lib/resumeforge/storage.ts`
+
+The old tabbed dashboard components were removed. Do not reintroduce `report-tab`, `resume-preview`, `audit-panel`, `missing-keywords`, `score-dashboard`, or `src/components/ui/*` unless explicitly requested.
+
+The active UI is Tailwind-first. Keep `src/app/globals.css` minimal and do not rebuild broad custom `rf-*` component CSS.
 
 ## Main rule
 
@@ -57,7 +73,7 @@ Focus on:
 3. scoring
 4. tailoring
 5. audit trail
-6. clean UI
+6. mockup-faithful UI
 7. Tauri packaging
 
 Avoid:
