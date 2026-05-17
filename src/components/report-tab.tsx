@@ -1,7 +1,6 @@
-import { AlertCircle, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
-import { type ReactNode } from "react";
+import { AlertTriangle, Check, XCircle } from "lucide-react";
 
-import { Separator } from "@/components/ui/separator";
+import { ScoreDashboard } from "@/components/score-dashboard";
 import { type ParsedJob } from "@/lib/schemas/job.schema";
 import { type CompatibilityScore } from "@/lib/schemas/score.schema";
 
@@ -10,34 +9,53 @@ interface Props {
   job: ParsedJob;
 }
 
-function ItemList({
-  title,
-  items,
-  icon,
-  emptyMessage,
-  itemClass,
-}: {
-  title: string;
-  items: string[];
-  icon: ReactNode;
-  emptyMessage: string;
-  itemClass: string;
-}) {
+function ItemRow({ tone, text }: { tone: "green" | "amber" | "red"; text: string }) {
   return (
-    <div>
-      <h3 className="mb-3 text-sm font-semibold">{title}</h3>
-      {items.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{emptyMessage}</p>
-      ) : (
-        <ul className="space-y-2">
-          {items.map((item, i) => (
-            <li key={i} className={`flex items-start gap-2 text-sm ${itemClass}`}>
-              <span className="mt-0.5 flex-shrink-0">{icon}</span>
-              {item}
-            </li>
-          ))}
-        </ul>
-      )}
+    <div className={`item-row ${tone}`}>
+      <div className="iico">
+        {tone === "green" && <Check size={12} strokeWidth={2.4} />}
+        {tone === "amber" && <AlertTriangle size={12} strokeWidth={2.2} />}
+        {tone === "red" && <XCircle size={12} strokeWidth={2} />}
+      </div>
+      <div className="it-text">{text}</div>
+    </div>
+  );
+}
+
+function BannerList({
+  tone,
+  title,
+  sub,
+  items,
+}: {
+  tone: "red" | "orange";
+  title: string;
+  sub: string;
+  items: string[];
+}) {
+  if (items.length === 0) return null;
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <div className={`banner ${tone}`}>
+        <div className="bn-icon">
+          {tone === "red" ? <XCircle size={18} strokeWidth={2} /> : <AlertTriangle size={18} strokeWidth={2} />}
+        </div>
+        <div>
+          <div className="bn-title">{title}</div>
+          <div className="bn-sub">{sub}</div>
+        </div>
+        <span className="bn-count">{items.length}</span>
+      </div>
+      {items.map((item, i) => (
+        <div key={i} className="item-row red" style={{ borderRadius: 8, marginBottom: 8 }}>
+          <div className="iico">
+            {tone === "red"
+              ? <XCircle size={12} strokeWidth={2} />
+              : <AlertTriangle size={12} strokeWidth={2.2} />}
+          </div>
+          <div className="it-text">{item}</div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -46,51 +64,69 @@ export function ReportTab({ score, job }: Props) {
   const jobLine = [job.title, job.company].filter(Boolean).join(" at ");
 
   return (
-    <div className="space-y-6">
-      {jobLine && <p className="text-sm text-muted-foreground">{jobLine}</p>}
-
-      <div className="grid grid-cols-2 gap-6">
-        <ItemList
-          title="Strengths"
-          items={score.strengths}
-          icon={<CheckCircle size={14} className="text-green-600" />}
-          emptyMessage="No required requirements matched."
-          itemClass="text-green-800"
-        />
-        <ItemList
-          title="Weaknesses"
-          items={score.weaknesses}
-          icon={<AlertTriangle size={14} className="text-amber-500" />}
-          emptyMessage="All preferred requirements are covered."
-          itemClass="text-amber-800"
-        />
+    <div className="tab-fade">
+      <div className="page-title-row">
+        <div>
+          <h1 className="h1">Fit report</h1>
+          <p className="lede">
+            {jobLine
+              ? `How this resume reads against ${jobLine} — strengths to lean into, weaknesses to address, and what's blocking submission.`
+              : "The headline of how this resume reads against the job — strengths to lean into, weaknesses to address, and what's blocking submission."}
+          </p>
+        </div>
       </div>
 
-      {score.blockers.length > 0 && (
-        <>
-          <Separator />
-          <ItemList
-            title="Blockers — required qualifications not evidenced"
-            items={score.blockers}
-            icon={<XCircle size={14} className="text-red-600" />}
-            emptyMessage=""
-            itemClass="text-red-800"
-          />
-        </>
-      )}
+      <ScoreDashboard score={score} />
 
-      {score.interviewRisks.length > 0 && (
-        <>
-          <Separator />
-          <ItemList
-            title="Interview Risks"
-            items={score.interviewRisks}
-            icon={<AlertCircle size={14} className="text-orange-600" />}
-            emptyMessage=""
-            itemClass="text-orange-800"
-          />
-        </>
-      )}
+      <div className="two-col" style={{ marginBottom: 20 }}>
+        <div className="g-card pad">
+          <div className="col-head">
+            <div className="col-title">
+              <span className="col-icon green">
+                <Check size={14} strokeWidth={2.2} />
+              </span>
+              Strengths
+            </div>
+            <span className="col-count">{score.strengths.length}</span>
+          </div>
+          {score.strengths.length === 0 ? (
+            <p style={{ fontSize: 14, color: "var(--muted)" }}>No strengths detected.</p>
+          ) : (
+            score.strengths.map((s, i) => <ItemRow key={i} tone="green" text={s} />)
+          )}
+        </div>
+
+        <div className="g-card pad">
+          <div className="col-head">
+            <div className="col-title">
+              <span className="col-icon amber">
+                <AlertTriangle size={14} strokeWidth={2.2} />
+              </span>
+              Weaknesses
+            </div>
+            <span className="col-count">{score.weaknesses.length}</span>
+          </div>
+          {score.weaknesses.length === 0 ? (
+            <p style={{ fontSize: 14, color: "var(--muted)" }}>All preferred requirements are covered.</p>
+          ) : (
+            score.weaknesses.map((w, i) => <ItemRow key={i} tone="amber" text={w} />)
+          )}
+        </div>
+      </div>
+
+      <BannerList
+        tone="red"
+        title="Blockers"
+        sub="Will likely kill the application if not addressed before submission."
+        items={score.blockers}
+      />
+
+      <BannerList
+        tone="orange"
+        title="Interview risks"
+        sub="Likely-to-come-up topics where this resume needs a rehearsed answer."
+        items={score.interviewRisks}
+      />
     </div>
   );
 }

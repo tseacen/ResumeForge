@@ -1,65 +1,140 @@
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+"use client";
+
+import { BarChart2, Briefcase, Layers, RefreshCw, Tag, Target } from "lucide-react";
+import { useEffect, useState } from "react";
+
 import { type CompatibilityScore } from "@/lib/schemas/score.schema";
 
 interface Props {
   score: CompatibilityScore;
 }
 
-function scoreColor(value: number) {
-  if (value >= 75) return "text-green-600";
-  if (value >= 50) return "text-amber-500";
-  return "text-red-600";
+function strokeFor(v: number): string {
+  if (v >= 80) return "#10b981";
+  if (v >= 60) return "#f59e0b";
+  return "#ef4444";
 }
 
-const riskStyles = {
-  low: "bg-green-100 text-green-800 border-green-200 hover:bg-green-100",
-  medium: "bg-amber-100 text-amber-800 border-amber-200 hover:bg-amber-100",
-  high: "bg-red-100 text-red-800 border-red-200 hover:bg-red-100",
-} as const;
+function fillClass(v: number): string {
+  if (v >= 80) return "green";
+  if (v >= 60) return "amber";
+  return "red";
+}
 
-const METRICS: { key: keyof Pick<CompatibilityScore, "ats" | "technicalFit" | "recruiterFit" | "seniorityFit" | "marketFit">; label: string }[] = [
-  { key: "ats", label: "ATS Score" },
-  { key: "technicalFit", label: "Technical Fit" },
-  { key: "recruiterFit", label: "Recruiter Fit" },
-  { key: "seniorityFit", label: "Seniority Fit" },
-  { key: "marketFit", label: "Market Fit" },
+function ScoreGauge({ value }: { value: number }) {
+  const R = 84;
+  const C = 2 * Math.PI * R;
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setProgress(value));
+    return () => cancelAnimationFrame(id);
+  }, [value]);
+
+  const offset = C - (progress / 100) * C;
+
+  return (
+    <div className="gauge-wrap">
+      <div className="gauge-center">
+        <div className="gauge-num">{value}</div>
+        <div className="gauge-of">out of 100</div>
+      </div>
+      <svg width="200" height="200" viewBox="0 0 200 200">
+        <circle cx="100" cy="100" r={R} fill="none" stroke="#f4f4f6" strokeWidth="14" />
+        <circle
+          cx="100"
+          cy="100"
+          r={R}
+          fill="none"
+          stroke={strokeFor(value)}
+          strokeWidth="14"
+          strokeLinecap="round"
+          strokeDasharray={C}
+          strokeDashoffset={offset}
+          style={{ transition: "stroke-dashoffset 1100ms cubic-bezier(0.22,1,0.36,1)" }}
+        />
+      </svg>
+    </div>
+  );
+}
+
+const SUB_SCORES: {
+  key: keyof Pick<
+    CompatibilityScore,
+    "ats" | "technicalFit" | "recruiterFit" | "seniorityFit" | "marketFit"
+  >;
+  label: string;
+  icon: React.ReactNode;
+}[] = [
+  { key: "technicalFit", label: "Technical fit", icon: <Target size={13} /> },
+  { key: "recruiterFit", label: "Recruiter fit", icon: <Briefcase size={13} /> },
+  { key: "ats", label: "ATS keywords", icon: <Tag size={13} /> },
+  { key: "seniorityFit", label: "Seniority fit", icon: <Layers size={13} /> },
+  { key: "marketFit", label: "Market fit", icon: <BarChart2 size={13} /> },
 ];
 
-export function ScoreDashboard({ score }: Props) {
-  return (
-    <div className="space-y-3">
-      <Card>
-        <CardContent className="flex items-center justify-between p-6">
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">Global Match Score</p>
-            <p className={`mt-1 text-5xl font-bold tabular-nums ${scoreColor(score.global)}`}>
-              {score.global}
-              <span className="text-xl font-normal text-muted-foreground"> / 100</span>
-            </p>
-          </div>
-          <div className="text-right space-y-1">
-            <p className="text-xs text-muted-foreground">Risk Level</p>
-            <Badge className={`text-sm px-3 py-1 border ${riskStyles[score.riskLevel]}`}>
-              {score.riskLevel.toUpperCase()}
-            </Badge>
-          </div>
-        </CardContent>
-      </Card>
+const RISK_LABELS: Record<CompatibilityScore["riskLevel"], string> = {
+  low: "Low risk · ready to send",
+  medium: "Moderate risk · address before submission",
+  high: "High risk · do not submit yet",
+};
 
-      <div className="grid grid-cols-5 gap-3">
-        {METRICS.map(({ key, label }) => (
-          <Card key={key}>
-            <CardHeader className="pb-1 pt-4 px-4">
-              <CardTitle className="text-xs font-medium text-muted-foreground">{label}</CardTitle>
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <p className={`text-2xl font-bold tabular-nums ${scoreColor(score[key])}`}>
-                {score[key]}
-              </p>
-            </CardContent>
-          </Card>
-        ))}
+export function ScoreDashboard({ score }: Props) {
+  const [showBars, setShowBars] = useState(false);
+
+  useEffect(() => {
+    const id = setTimeout(() => setShowBars(true), 150);
+    return () => clearTimeout(id);
+  }, []);
+
+  const riskTone =
+    score.riskLevel === "low" ? "" : score.riskLevel === "medium" ? "amber" : "red";
+
+  return (
+    <div className="dash-grid">
+      {/* Gauge card */}
+      <div className="g-card gauge-card">
+        <div className="gauge-label">Global fit score</div>
+        <ScoreGauge value={score.global} />
+        <div className={`risk-pill${riskTone ? ` ${riskTone}` : ""}`}>
+          <span className="rkdot" />
+          {RISK_LABELS[score.riskLevel]}
+        </div>
+      </div>
+
+      {/* Sub-scores card */}
+      <div className="g-card subs-card">
+        <div className="subs-head">
+          <div>
+            <div className="g-card-eyebrow">Sub-scores</div>
+            <div className="g-card-title">Breakdown across five dimensions</div>
+          </div>
+          <button className="pill-btn ghost sm" style={{ height: 28 }} type="button">
+            <RefreshCw size={12} /> Recompute
+          </button>
+        </div>
+
+        {SUB_SCORES.map(({ key, label, icon }, i) => {
+          const v = score[key];
+          return (
+            <div className="sub-row" key={key}>
+              <div className="sub-label">
+                <span className="lico">{icon}</span>
+                {label}
+              </div>
+              <div className="sub-bar">
+                <div
+                  className={`fill ${fillClass(v)}`}
+                  style={{
+                    width: showBars ? `${v}%` : "0%",
+                    transitionDelay: `${i * 130}ms`,
+                  }}
+                />
+              </div>
+              <div className="sub-num">{v}</div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
