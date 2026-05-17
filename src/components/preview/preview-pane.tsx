@@ -1,98 +1,207 @@
 "use client";
 
-import { Download, ExternalLink, FileText } from "lucide-react";
+import { Download, FileText, Printer } from "lucide-react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
-import { type CvDocument, type CvLine } from "@/lib/schemas/cv-document.schema";
+import { type ResumeChangeAudit } from "@/lib/schemas/audit.schema";
 
 const iconButton =
-  "grid h-7 w-7 place-items-center rounded-md text-[var(--muted)] hover:bg-[rgba(31,30,27,0.06)] hover:text-[var(--ink)] disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex h-8 items-center gap-1.5 rounded-md border border-[var(--line)] bg-[var(--card)] px-2.5 text-[12px] font-medium text-[var(--ink-2)] shadow-[var(--shadow-sm)] transition-colors hover:border-[var(--line-2)] hover:bg-[var(--card-2)] active:translate-y-px disabled:cursor-not-allowed disabled:opacity-40";
 const previewTab =
   "rounded-md px-[11px] py-[5px] text-xs font-medium text-[var(--muted)] disabled:cursor-not-allowed disabled:opacity-40";
 
 interface PreviewPaneProps {
-  original: CvDocument | null;
-  adapted: CvDocument | null;
+  originalHtml: string | null;
+  adaptedHtml: string | null;
+  audits: ResumeChangeAudit[];
   mode: "original" | "adapted" | "diff";
   adaptedReady: boolean;
   onModeChange: (mode: "original" | "adapted" | "diff") => void;
-  onExport: () => void;
+  onExportHtml: () => void;
 }
 
-function lineTextForMode(line: CvLine, mode: PreviewPaneProps["mode"]) {
-  if (mode === "original") return line.originalText ?? line.text;
-  return line.text;
-}
+// A4 width at 96dpi for the virtual page; the wrapper scales it to the container width.
+const VIRTUAL_PAGE_WIDTH = 794;
+const VIRTUAL_PADDING = 40;
 
-function CvLineView({ line, mode }: { line: CvLine; mode: PreviewPaneProps["mode"] }) {
-  if (mode === "original" && line.status === "added") return null;
+function wrapResumeHtml(rawHtml: string): string {
+  const lower = rawHtml.toLowerCase();
+  const hasHtmlShell = lower.includes("<html") || lower.includes("<!doctype");
+  const baseCss = `
+    html, body { margin: 0; padding: 0; background: #ffffff; }
+    body {
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Inter, sans-serif;
+      color: #1f1e1b;
+      line-height: 1.5;
+      padding: ${VIRTUAL_PADDING}px;
+      max-width: ${VIRTUAL_PAGE_WIDTH}px;
+      box-sizing: border-box;
+    }
+    h1 { font-size: 30px; margin: 0 0 4px; letter-spacing: -0.01em; }
+    h2 { font-size: 14px; margin: 22px 0 8px; text-transform: uppercase; letter-spacing: 0.12em; color: #6b6862; border-bottom: 1px solid #e7e3da; padding-bottom: 4px; }
+    h3 { font-size: 15px; margin: 12px 0 2px; }
+    p { margin: 0 0 8px; }
+    ul { margin: 6px 0 10px 18px; padding: 0; }
+    li { margin: 3px 0; }
+    a { color: #c4644a; text-decoration: none; }
+    header .contact { color: #6b6862; font-size: 13px; }
+    @page { size: A4; margin: 16mm; }
+    @media print {
+      body { padding: 0; max-width: none; }
+    }
+  `.trim();
 
-  if (mode === "diff" && line.originalText && line.originalText !== line.text) {
-    return (
-      <li className="rf-paper-diff">
-        <span className="removed">{line.originalText}</span>
-        <span className="added">{line.text}</span>
-      </li>
-    );
+  if (hasHtmlShell) {
+    // Inject our scaffold styles into the document head without overriding user styles
+    if (/<head[\s>]/i.test(rawHtml)) {
+      return rawHtml.replace(/<head([^>]*)>/i, `<head$1><style>${baseCss}</style>`);
+    }
+    if (/<html[\s>]/i.test(rawHtml)) {
+      return rawHtml.replace(/<html([^>]*)>/i, `<html$1><head><style>${baseCss}</style></head>`);
+    }
   }
 
-  return <li className={mode !== "original" ? line.status : ""}>{lineTextForMode(line, mode)}</li>;
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseCss}</style></head><body>${rawHtml}</body></html>`;
 }
 
-function CVPaper({ document, mode }: { document: CvDocument; mode: PreviewPaneProps["mode"] }) {
+function ResumeIframe({
+  html,
+  iframeRef,
+}: {
+  html: string;
+  iframeRef: React.RefObject<HTMLIFrameElement | null>;
+}) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  const [docHeight, setDocHeight] = useState(1000);
+
+  const srcDoc = useMemo(() => wrapResumeHtml(html), [html]);
+
+  useLayoutEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+    const update = () => {
+      const containerWidth = wrapper.clientWidth;
+      const targetWidth = VIRTUAL_PAGE_WIDTH;
+      setScale(Math.min(1, containerWidth / targetWidth));
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(wrapper);
+    return () => ro.disconnect();
+  }, []);
+
+  function handleLoad() {
+    const frame = iframeRef.current;
+    if (!frame) return;
+    try {
+      const doc = frame.contentDocument;
+      if (!doc) return;
+      const height = Math.max(doc.documentElement.scrollHeight, doc.body.scrollHeight);
+      setDocHeight(height);
+    } catch {
+      // cross-origin guard — we own the srcDoc so this should not happen
+    }
+  }
+
+  // Re-measure after scale changes (font metrics may shift slightly)
+  useEffect(() => {
+    handleLoad();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scale, srcDoc]);
+
   return (
-    <article className="rf-paper">
-      <header>
-        <h1>{document.name}</h1>
-        {document.headline && <p className="rf-paper-title">{document.headline}</p>}
-        {document.contact.length > 0 && (
-          <p className="rf-paper-contact">{document.contact.join(" · ")}</p>
-        )}
-      </header>
-      {document.sections.map((section) => (
-        <section key={section.id}>
-          <h2>{section.title}</h2>
-          {section.kind === "summary" || section.kind === "skills" ? (
-            <div>
-              {section.lines.map((line) => {
-                if (mode === "diff" && line.originalText && line.originalText !== line.text) {
-                  return (
-                    <div className="rf-paper-diff" key={line.id}>
-                      <span className="removed">{line.originalText}</span>
-                      <span className="added">{line.text}</span>
-                    </div>
-                  );
-                }
-                return (
-                  <p className={mode !== "original" ? line.status : ""} key={line.id}>
-                    {lineTextForMode(line, mode)}
-                  </p>
-                );
-              })}
+    <div className="w-full" ref={wrapperRef}>
+      <div
+        className="rounded-md border border-[var(--line)] bg-white shadow-[var(--shadow-sm)]"
+        style={{
+          width: "100%",
+          height: docHeight * scale,
+          overflow: "hidden",
+          position: "relative",
+        }}
+      >
+        <iframe
+          ref={iframeRef}
+          title="CV preview"
+          srcDoc={srcDoc}
+          sandbox="allow-same-origin"
+          onLoad={handleLoad}
+          style={{
+            width: VIRTUAL_PAGE_WIDTH,
+            height: docHeight,
+            border: 0,
+            transform: `scale(${scale})`,
+            transformOrigin: "top left",
+            display: "block",
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function AuditList({ audits }: { audits: ResumeChangeAudit[] }) {
+  if (audits.length === 0) {
+    return (
+      <div className="rounded-[10px] border border-dashed border-[var(--line)] bg-[var(--card-2)] px-4 py-6 text-center text-[13px] text-[var(--muted)]">
+        Aucun changement enregistré pour cette adaptation.
+      </div>
+    );
+  }
+  return (
+    <ul className="m-0 flex list-none flex-col gap-3 p-0">
+      {audits.map((audit) => (
+        <li
+          key={audit.changeId}
+          className="rounded-[10px] border border-[var(--line)] bg-[var(--card)] px-4 py-3 shadow-[var(--shadow-sm)]"
+        >
+          <div className="mb-1.5 flex flex-wrap items-center gap-2 text-[11px] font-semibold tracking-[0.1em] text-[var(--muted)] uppercase">
+            <span className="rounded-full border border-[var(--line)] bg-[var(--bg-2)] px-2 py-[2px]">
+              {audit.targetSection}
+            </span>
+            <span
+              className={`rounded-full border px-2 py-[2px] ${
+                audit.classification === "blocked"
+                  ? "border-[rgba(181,57,47,0.22)] bg-[var(--danger-soft)] text-[var(--danger)]"
+                  : audit.classification === "needs_user_validation"
+                    ? "border-[rgba(181,136,46,0.22)] bg-[var(--warn-soft)] text-[var(--warn)]"
+                    : "border-[rgba(90,122,79,0.22)] bg-[var(--success-soft)] text-[var(--success)]"
+              }`}
+            >
+              {audit.classification}
+            </span>
+          </div>
+          {audit.originalText && (
+            <div className="mb-1 text-[12.5px] leading-[1.5] text-[var(--muted)] line-through">
+              {audit.originalText}
             </div>
-          ) : (
-            <ul>
-              {section.lines.map((line) => (
-                <CvLineView key={line.id} line={line} mode={mode} />
-              ))}
-            </ul>
           )}
-        </section>
+          <div className="text-[13.5px] leading-[1.5] text-[var(--ink-2)]">{audit.newText}</div>
+          <div className="mt-1.5 text-[12px] text-[var(--muted)]">{audit.reason}</div>
+        </li>
       ))}
-    </article>
+    </ul>
   );
 }
 
 export function PreviewPane({
-  original,
-  adapted,
+  originalHtml,
+  adaptedHtml,
+  audits,
   mode,
   adaptedReady,
   onModeChange,
-  onExport,
+  onExportHtml,
 }: PreviewPaneProps) {
-  const visibleDocument = mode === "adapted" || mode === "diff" ? (adapted ?? original) : original;
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
-  if (!visibleDocument) {
+  const visibleHtml = useMemo(() => {
+    if (mode === "adapted" || mode === "diff") return adaptedHtml ?? originalHtml;
+    return originalHtml;
+  }, [mode, adaptedHtml, originalHtml]);
+
+  if (!originalHtml && !adaptedHtml) {
     return (
       <aside className="flex min-w-0 flex-col bg-[var(--bg-2)] max-[980px]:hidden">
         <div className="flex items-center justify-between border-b border-[var(--line)] bg-[rgba(245,242,234,0.86)] px-[18px] py-3.5 backdrop-blur-[10px]">
@@ -113,9 +222,20 @@ export function PreviewPane({
     );
   }
 
+  function handlePrintPdf() {
+    const frame = iframeRef.current;
+    if (!frame || !frame.contentWindow) return;
+    try {
+      frame.contentWindow.focus();
+      frame.contentWindow.print();
+    } catch {
+      // ignore
+    }
+  }
+
   return (
     <aside className="flex min-w-0 flex-col bg-[var(--bg-2)] max-[980px]:hidden">
-      <div className="flex items-center justify-between gap-3 border-b border-[var(--line)] bg-[rgba(245,242,234,0.86)] px-[18px] py-3.5 backdrop-blur-[10px]">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] bg-[rgba(245,242,234,0.86)] px-[18px] py-3 backdrop-blur-[10px]">
         <div className="flex min-w-0 items-center gap-2 font-[family-name:var(--font-display)] text-sm font-medium tracking-[-0.005em] text-[var(--ink)]">
           <FileText size={14} /> {adaptedReady ? "CV adapté" : "CV de base"}
         </div>
@@ -141,26 +261,36 @@ export function PreviewPane({
             disabled={!adaptedReady}
             onClick={() => onModeChange("diff")}
           >
-            Diff
+            Audits
           </button>
         </div>
-        <div className="flex gap-1">
+        <div className="flex gap-1.5">
           <button
             className={iconButton}
             type="button"
-            onClick={onExport}
+            onClick={onExportHtml}
             disabled={!adaptedReady}
-            title="Télécharger"
+            title="Télécharger en HTML"
           >
-            <Download size={14} />
+            <Download size={13} /> HTML
           </button>
-          <button className={iconButton} type="button" disabled title="Ouvrir">
-            <ExternalLink size={14} />
+          <button
+            className={iconButton}
+            type="button"
+            onClick={handlePrintPdf}
+            disabled={!visibleHtml}
+            title="Exporter en PDF (via impression)"
+          >
+            <Printer size={13} /> PDF
           </button>
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-auto p-[22px]">
-        <CVPaper document={visibleDocument} mode={mode} />
+        {mode === "diff" ? (
+          <AuditList audits={audits} />
+        ) : (
+          visibleHtml && <ResumeIframe html={visibleHtml} iframeRef={iframeRef} />
+        )}
       </div>
     </aside>
   );

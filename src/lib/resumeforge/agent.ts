@@ -17,6 +17,7 @@ import {
   type AdaptationSession,
   type AdaptationSessionSummary,
 } from "@/lib/schemas/session.schema";
+import { type AnalysisResponse } from "@/lib/types";
 
 function isoNow(): string {
   return new Date().toISOString();
@@ -34,9 +35,7 @@ function sessionTitle(jobTitle: string | undefined, company: string | undefined)
   return "Nouvelle adaptation";
 }
 
-function clippedJob(jobText: string): string {
-  return jobText.length > 520 ? `${jobText.slice(0, 520)}...` : jobText;
-}
+const USER_BUBBLE_TRUNCATE_AT = 520;
 
 function needsFromMissing(missingKeywords: string[]): ChatNeed[] {
   return missingKeywords.slice(0, 6).map((term, index) => ({
@@ -124,7 +123,12 @@ function buildDiagnosticMessages(
       id: "assistant-start",
       body: ["Bonjour. J'ai reçu l'offre et je la compare à votre CV maître."],
     },
-    { kind: "user", id: "user-job", body: clippedJob(jobText), truncated: jobText.length > 520 },
+    {
+      kind: "user",
+      id: "user-job",
+      body: jobText,
+      truncated: jobText.length > USER_BUBBLE_TRUNCATE_AT,
+    },
     {
       kind: "assistant",
       id: "assistant-diagnostic",
@@ -149,11 +153,10 @@ function buildDiagnosticMessages(
   ];
 }
 
-export function createSessionFromInputs(
-  masterResumeHtml: string,
-  jobText: string
+export function buildSessionFromAnalysis(
+  jobText: string,
+  analysis: AnalysisResponse
 ): AdaptationSession {
-  const analysis = runAnalysis(masterResumeHtml, jobText);
   const tailoredResume = parseResumeHtml(analysis.tailored.html);
   const originalDocument = buildCvDocument(analysis.resume);
   const adaptedDocument = buildAdaptedCvDocument(tailoredResume, analysis.tailored.audits);
@@ -181,8 +184,40 @@ export function createSessionFromInputs(
   };
 }
 
-export function completeSession(session: AdaptationSession): AdaptationSession {
+export function createSessionFromInputs(
+  masterResumeHtml: string,
+  jobText: string
+): AdaptationSession {
+  const analysis = runAnalysis(masterResumeHtml, jobText);
+  return buildSessionFromAnalysis(jobText, analysis);
+}
+
+export function applyTailoredAnalysis(
+  session: AdaptationSession,
+  analysis: AnalysisResponse
+): AdaptationSession {
+  const tailoredResume = parseResumeHtml(analysis.tailored.html);
+  const adaptedDocument = buildAdaptedCvDocument(tailoredResume, analysis.tailored.audits);
+  return {
+    ...session,
+    parsedResume: analysis.resume,
+    parsedJob: analysis.job,
+    score: analysis.score,
+    tailoredHtml: analysis.tailored.html,
+    audits: analysis.tailored.audits,
+    adaptedDocument,
+    updatedAt: isoNow(),
+  };
+}
+
+export function completeSession(
+  session: AdaptationSession,
+  options?: { llmUsed?: boolean; providerName?: string; model?: string }
+): AdaptationSession {
   const blocked = blockedClaims(session.audits);
+  const provenance = options?.llmUsed
+    ? `Génération via **${options.providerName ?? "IA"}**${options.model ? ` (${options.model})` : ""}.`
+    : "Génération en mode local déterministe (aucune IA configurée).";
   const completeMessages: ChatMessage[] = [
     ...session.messages,
     { kind: "step", id: "step-generate", label: "Étape 2 · CV adapté généré", done: true },
@@ -192,6 +227,7 @@ export function completeSession(session: AdaptationSession): AdaptationSession {
       id: "assistant-complete",
       body: [
         `Le CV adapté est prêt avec un score de **${session.score.global}/100**.`,
+        provenance,
         blocked.length
           ? `${blocked.length} revendication${blocked.length > 1 ? "s" : ""} non prouvée${blocked.length > 1 ? "s" : ""} a été bloquée pour éviter toute hallucination.`
           : "Aucune revendication non prouvée n'a été ajoutée.",

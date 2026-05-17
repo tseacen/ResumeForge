@@ -1,18 +1,21 @@
 "use client";
 
-import { Edit3, Settings, Sparkles } from "lucide-react";
+import { Edit3, Settings, Sparkles, Trash2 } from "lucide-react";
 
 import { type AdaptationSessionSummary } from "@/lib/schemas/session.schema";
 
+const sidebarRow =
+  "group relative flex w-full items-stretch rounded-[7px] transition-colors hover:bg-[rgba(31,30,27,0.04)]";
+const activeSidebarRow = "bg-[var(--accent-soft)] [&_.session-title]:text-[var(--accent)]";
 const sidebarLink =
-  "flex w-full flex-col gap-px rounded-[7px] px-2.5 py-2 text-left text-[var(--ink-2)] transition-colors hover:bg-[rgba(31,30,27,0.04)]";
-const activeSidebarLink = "bg-[var(--accent-soft)] [&_.session-title]:text-[var(--accent)]";
+  "flex flex-1 flex-col gap-px rounded-[7px] px-2.5 py-2 text-left text-[var(--ink-2)] focus:outline-none";
 
 interface SidebarProps {
   sessions: AdaptationSessionSummary[];
   activeSessionId: string | null;
   onNewSession: () => void;
   onSelectSession: (id: string) => void;
+  onDeleteSession: (id: string) => void;
   onOpenSettings: () => void;
 }
 
@@ -32,6 +35,7 @@ export function Sidebar({
   activeSessionId,
   onNewSession,
   onSelectSession,
+  onDeleteSession,
   onOpenSettings,
 }: SidebarProps) {
   const grouped = sessions.reduce<Record<string, AdaptationSessionSummary[]>>((acc, session) => {
@@ -75,25 +79,45 @@ export function Sidebar({
               {day}
             </div>
             {items.map((session) => (
-              <button
+              <div
                 key={session.id}
-                className={`${sidebarLink} ${session.id === activeSessionId ? activeSidebarLink : ""}`}
-                type="button"
-                onClick={() => onSelectSession(session.id)}
+                className={`${sidebarRow} ${session.id === activeSessionId ? activeSidebarRow : ""}`}
               >
-                <div className="session-title overflow-hidden text-[13px] leading-[1.35] font-medium text-ellipsis whitespace-nowrap text-[var(--ink-2)]">
-                  {session.title}
-                </div>
-                <div className="flex items-center gap-1.5 text-[11px] text-[var(--muted-2)]">
-                  {session.score != null && (
-                    <span className="font-[family-name:var(--font-mono)] text-[10.5px] text-[var(--success)]">
-                      {session.score}/100
-                    </span>
-                  )}
-                  <span>·</span>
-                  <span>{session.status === "adapted" ? "Adapté" : "Diagnostic"}</span>
-                </div>
-              </button>
+                <button
+                  className={sidebarLink}
+                  type="button"
+                  onClick={() => onSelectSession(session.id)}
+                >
+                  <div className="session-title overflow-hidden pr-7 text-[13px] leading-[1.35] font-medium text-ellipsis whitespace-nowrap text-[var(--ink-2)]">
+                    {session.title}
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[11px] text-[var(--muted-2)]">
+                    {session.score != null && (
+                      <span className="font-[family-name:var(--font-mono)] text-[10.5px] text-[var(--success)]">
+                        {session.score}/100
+                      </span>
+                    )}
+                    <span>·</span>
+                    <span>{session.status === "adapted" ? "Adapté" : "Diagnostic"}</span>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  className="absolute top-1/2 right-1.5 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-md text-[var(--muted)] opacity-0 transition-opacity hover:bg-[rgba(181,57,47,0.12)] hover:text-[var(--danger)] focus:opacity-100 group-hover:opacity-100"
+                  title="Supprimer cette adaptation"
+                  aria-label={`Supprimer ${session.title}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    if (
+                      window.confirm(`Supprimer définitivement "${session.title}" ? Cette action est irréversible.`)
+                    ) {
+                      onDeleteSession(session.id);
+                    }
+                  }}
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
             ))}
           </div>
         ))}

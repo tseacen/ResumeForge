@@ -10,11 +10,12 @@ import {
   Terminal,
   TestTube,
 } from "lucide-react";
+import { BsAnthropic, BsOpenai } from "react-icons/bs";
+
 import { useRef, useState } from "react";
 
-import { parseResumeHtml } from "@/lib/parsers/parse-resume-html";
-import { SAMPLE_RESUME_HTML } from "@/lib/resumeforge/sample-data";
 import { type AIProviderId, type ProviderStatus } from "@/lib/schemas/settings.schema";
+import React from "react";
 
 const pageClass =
   "mx-auto w-full max-w-[920px] flex-1 overflow-y-auto px-11 pt-9 pb-16 animate-[rf-fade_420ms_cubic-bezier(0.22,1,0.36,1)] max-[980px]:max-w-none max-[980px]:px-5 max-[980px]:pt-7 max-[980px]:pb-12";
@@ -56,29 +57,32 @@ export interface SetupFlowProps {
 
 const providerMeta: Array<{
   id: Exclude<AIProviderId, "mock">;
+  icon: React.ComponentType<{ size?: number }>;
   name: string;
   sub: string;
   desc: string;
   install: string;
   keyPlaceholder: string;
 }> = [
-  {
-    id: "claude-code",
-    name: "Claude Code",
-    sub: "Anthropic · CLI",
-    desc: "Précis, prudent, excellent pour raisonner sur le contexte avant de réécrire.",
-    install: "npm install -g @anthropic/claude-code",
-    keyPlaceholder: "sk-ant-api03-…",
-  },
-  {
-    id: "openai-codex",
-    name: "OpenAI Codex",
-    sub: "OpenAI · CLI",
-    desc: "Rapide et créatif pour itérer plusieurs variantes de formulation.",
-    install: "npm install -g @openai/codex",
-    keyPlaceholder: "sk-proj-…",
-  },
-];
+    {
+      id: "claude-code",
+      icon: BsAnthropic,
+      name: "Claude Code",
+      sub: "Anthropic · CLI",
+      desc: "Précis, prudent, excellent pour raisonner sur le contexte avant de réécrire.",
+      install: "npm install -g @anthropic/claude-code",
+      keyPlaceholder: "sk-ant-api03-…",
+    },
+    {
+      id: "openai-codex",
+      icon: BsOpenai,
+      name: "OpenAI Codex",
+      sub: "OpenAI · CLI",
+      desc: "Rapide et créatif pour itérer plusieurs variantes de formulation.",
+      install: "npm install -g @openai/codex",
+      keyPlaceholder: "sk-proj-…",
+    },
+  ];
 
 function StepRail({ current }: { current: 1 | 2 | 3 }) {
   const steps = ["Configurer l'IA", "Ajouter le CV de base", "Prêt à adapter"];
@@ -91,22 +95,20 @@ function StepRail({ current }: { current: 1 | 2 | 3 }) {
         return (
           <div className="flex flex-none items-center max-[980px]:w-full" key={label}>
             <div
-              className={`inline-flex items-center gap-2 rounded-full px-3.5 py-[7px] pr-3.5 pl-2.5 text-[13px] font-medium whitespace-nowrap transition-colors ${
-                isActive
-                  ? "bg-[var(--card)] text-[var(--ink)] shadow-[var(--shadow-sm)]"
-                  : isDone
-                    ? "text-[var(--ink-2)]"
-                    : "text-[var(--muted)]"
-              }`}
+              className={`inline-flex items-center gap-2 rounded-full px-3.5 py-[7px] pr-3.5 pl-2.5 text-[13px] font-medium whitespace-nowrap transition-colors ${isActive
+                ? "bg-[var(--card)] text-[var(--ink)] shadow-[var(--shadow-sm)]"
+                : isDone
+                  ? "text-[var(--ink-2)]"
+                  : "text-[var(--muted)]"
+                }`}
             >
               <span
-                className={`grid h-5 w-5 place-items-center rounded-full border font-[family-name:var(--font-mono)] text-[11px] font-semibold ${
-                  isActive
-                    ? "border-[var(--accent)] bg-[var(--accent)] text-white"
-                    : isDone
-                      ? "border-[var(--success)] bg-[var(--success)] text-white"
-                      : "border-[var(--line)] bg-[var(--card)] text-[var(--muted)]"
-                }`}
+                className={`grid h-5 w-5 place-items-center rounded-full border font-[family-name:var(--font-mono)] text-[11px] font-semibold ${isActive
+                  ? "border-[var(--accent)] bg-[var(--accent)] text-white"
+                  : isDone
+                    ? "border-[var(--success)] bg-[var(--success)] text-white"
+                    : "border-[var(--line)] bg-[var(--card)] text-[var(--muted)]"
+                  }`}
               >
                 {isDone ? <Check size={11} strokeWidth={2.4} /> : step}
               </span>
@@ -123,12 +125,10 @@ function StepRail({ current }: { current: 1 | 2 | 3 }) {
 }
 
 function ModelSelect({
-  id,
   models,
   selected,
   onSelect,
 }: {
-  id: AIProviderId;
   models: string[];
   selected: string;
   onSelect: (model: string) => void;
@@ -191,11 +191,10 @@ function ProviderCard({
 
   return (
     <div
-      className={`relative w-full cursor-pointer rounded-[14px] border bg-[var(--card)] px-[22px] pt-5 pb-[18px] text-left shadow-[var(--shadow-sm)] transition-all duration-180 hover:-translate-y-0.5 hover:border-[var(--line-2)] hover:shadow-[var(--shadow-md)] ${
-        selected
-          ? "border-[var(--accent)] shadow-[0_0_0_3px_var(--accent-ring),var(--shadow-sm)]"
-          : "border-[var(--line)]"
-      }`}
+      className={`relative w-full cursor-pointer rounded-[14px] border bg-[var(--card)] px-[22px] pt-5 pb-[18px] text-left shadow-[var(--shadow-sm)] transition-all duration-180 hover:-translate-y-0.5 hover:border-[var(--line-2)] hover:shadow-[var(--shadow-md)] ${selected
+        ? "border-[var(--accent)] shadow-[0_0_0_3px_var(--accent-ring),var(--shadow-sm)]"
+        : "border-[var(--line)]"
+        }`}
       role="button"
       tabIndex={0}
       onClick={() => onSelect(id)}
@@ -204,22 +203,20 @@ function ProviderCard({
       }}
     >
       <div
-        className={`absolute top-3.5 right-3.5 grid h-[22px] w-[22px] place-items-center rounded-full bg-[var(--accent)] text-white transition-all duration-180 ${
-          selected ? "scale-100 opacity-100" : "scale-75 opacity-0"
-        }`}
+        className={`absolute top-3.5 right-3.5 grid h-[22px] w-[22px] place-items-center rounded-full bg-[var(--accent)] text-white transition-all duration-180 ${selected ? "scale-100 opacity-100" : "scale-75 opacity-0"
+          }`}
       >
         <Check size={13} strokeWidth={2.4} />
       </div>
 
       <div className="mb-3.5 flex items-center gap-3.5">
         <div
-          className={`grid h-11 w-11 flex-none place-items-center rounded-[10px] ${
-            id === "openai-codex"
-              ? "bg-[#1f1e1b] text-[#fbfaf6]"
-              : "bg-[var(--accent-tint)] text-[var(--accent)]"
-          }`}
+          className={`grid h-11 w-11 flex-none place-items-center rounded-[10px] ${id === "openai-codex"
+            ? "bg-[#1f1e1b] text-[#fbfaf6]"
+            : "bg-[var(--accent-tint)] text-[var(--accent)]"
+            }`}
         >
-          <Terminal size={21} />
+          {React.createElement(providerMeta.find((p) => p.id === id)?.icon ?? Terminal, { size: 17 })}
         </div>
         <div>
           <div className="font-[family-name:var(--font-display)] text-[17px] leading-[1.1] font-medium tracking-[-0.01em] text-[var(--ink)]">
@@ -276,7 +273,6 @@ function ProviderCard({
           {selected ? (
             <>
               <ModelSelect
-                id={id}
                 models={models}
                 selected={selectedModel}
                 onSelect={(m) => onSelectModel(id, m)}
@@ -365,14 +361,10 @@ function SetupAI(props: SetupFlowProps) {
 function SetupCV({ onBackToAI, onSaveMasterResume }: SetupFlowProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [tab, setTab] = useState<"paste" | "file">("paste");
-  const [html, setHtml] = useState(SAMPLE_RESUME_HTML);
+  const [html, setHtml] = useState("");
   const [dragOver, setDragOver] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const hasContent = html.trim().length > 100;
-  const parsed = hasContent ? parseResumeHtml(html) : null;
-  const experienceCount =
-    parsed?.facts.filter((fact) => fact.category === "experience").length ?? 0;
-  const skillCount = parsed?.facts.filter((fact) => fact.category === "skill").length ?? 0;
 
   function handleFile(file: File | undefined) {
     if (!file) return;
@@ -402,22 +394,20 @@ function SetupCV({ onBackToAI, onSaveMasterResume }: SetupFlowProps) {
       <div className="overflow-hidden rounded-[14px] border border-[var(--line)] bg-[var(--card)] shadow-[var(--shadow-sm)]">
         <div className="flex gap-1 border-b border-[var(--line)] bg-[var(--bg-2)] px-2 pt-2">
           <button
-            className={`inline-flex items-center gap-[7px] rounded-t-md border-b-2 px-3.5 pt-[9px] pb-2.5 text-[13px] font-medium transition-colors hover:text-[var(--ink-2)] ${
-              tab === "paste"
-                ? "border-[var(--accent)] bg-[var(--card)] text-[var(--ink)]"
-                : "border-transparent text-[var(--muted)]"
-            }`}
+            className={`inline-flex items-center gap-[7px] rounded-t-md border-b-2 px-3.5 pt-[9px] pb-2.5 text-[13px] font-medium transition-colors hover:text-[var(--ink-2)] ${tab === "paste"
+              ? "border-[var(--accent)] bg-[var(--card)] text-[var(--ink)]"
+              : "border-transparent text-[var(--muted)]"
+              }`}
             type="button"
             onClick={() => setTab("paste")}
           >
             <Code2 size={13} /> Coller le HTML
           </button>
           <button
-            className={`inline-flex items-center gap-[7px] rounded-t-md border-b-2 px-3.5 pt-[9px] pb-2.5 text-[13px] font-medium transition-colors hover:text-[var(--ink-2)] ${
-              tab === "file"
-                ? "border-[var(--accent)] bg-[var(--card)] text-[var(--ink)]"
-                : "border-transparent text-[var(--muted)]"
-            }`}
+            className={`inline-flex items-center gap-[7px] rounded-t-md border-b-2 px-3.5 pt-[9px] pb-2.5 text-[13px] font-medium transition-colors hover:text-[var(--ink-2)] ${tab === "file"
+              ? "border-[var(--accent)] bg-[var(--card)] text-[var(--ink)]"
+              : "border-transparent text-[var(--muted)]"
+              }`}
             type="button"
             onClick={() => setTab("file")}
           >
@@ -430,15 +420,17 @@ function SetupCV({ onBackToAI, onSaveMasterResume }: SetupFlowProps) {
               className="h-auto min-h-[260px] w-full resize-y rounded-[10px] border border-[var(--line)] bg-[var(--card-2)] px-4 py-3.5 font-[family-name:var(--font-mono)] text-[12.5px] leading-[1.55] text-[var(--ink-2)] transition-colors outline-none focus:border-[var(--accent)] focus:bg-[var(--card)] focus:shadow-[var(--focus)]"
               value={html}
               onChange={(event) => setHtml(event.target.value)}
+              placeholder={
+                "<!doctype html>\n<html>\n  <body>\n    <header>\n      <h1>Votre Nom</h1>\n      <p class=\"contact\">email@exemple.com · Ville</p>\n    </header>\n    <section>\n      <h2>Résumé</h2>\n      <p>…</p>\n    </section>\n    <section>\n      <h2>Expérience</h2>\n      <h3>Rôle · Société</h3>\n      <ul>\n        <li>…</li>\n      </ul>\n    </section>\n  </body>\n</html>"
+              }
               spellCheck={false}
             />
           ) : (
             <button
-              className={`grid min-h-[260px] w-full place-items-center content-center justify-center gap-2 rounded-[10px] border-[1.5px] border-dashed p-10 text-center text-[var(--muted)] transition-colors ${
-                dragOver
-                  ? "border-[var(--accent)] bg-[var(--accent-soft)]"
-                  : "border-[var(--line-2)] bg-[var(--card-2)]"
-              }`}
+              className={`grid min-h-[260px] w-full place-items-center content-center justify-center gap-2 rounded-[10px] border-[1.5px] border-dashed p-10 text-center text-[var(--muted)] transition-colors ${dragOver
+                ? "border-[var(--accent)] bg-[var(--accent-soft)]"
+                : "border-[var(--line-2)] bg-[var(--card-2)]"
+                }`}
               type="button"
               onClick={() => inputRef.current?.click()}
               onDragOver={(event) => {
@@ -472,10 +464,6 @@ function SetupCV({ onBackToAI, onSaveMasterResume }: SetupFlowProps) {
                 <span>·</span>
                 <span className="font-[family-name:var(--font-mono)]">
                   {(html.length / 1024).toFixed(1)} ko
-                </span>
-                <span>·</span>
-                <span>
-                  {experienceCount} expériences · {skillCount} compétences
                 </span>
               </>
             ) : (

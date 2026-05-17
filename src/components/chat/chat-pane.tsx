@@ -15,18 +15,20 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import { SAMPLE_JOB_TEXT } from "@/lib/resumeforge/sample-data";
 import { type ChatMessage, type ValidationQuestion } from "@/lib/schemas/chat.schema";
 import { type AdaptationSession } from "@/lib/schemas/session.schema";
 
 interface ChatPaneProps {
   session: AdaptationSession | null;
   masterResumeReady: boolean;
+  providerReady: boolean;
+  providerLabel: string;
   isGenerating: boolean;
   onSubmitJob: (jobText: string) => void;
   onGenerate: () => void;
   onAnswerQuestion: (questionId: string, answer: string) => void;
   onEditMasterResume: () => void;
+  onOpenSettings: () => void;
 }
 
 const smallButton =
@@ -281,69 +283,106 @@ function ActionPaste({ onSubmitJob }: { onSubmitJob: (jobText: string) => void }
 function Welcome({
   onSubmitJob,
   onEditMasterResume,
+  onOpenSettings,
   masterResumeReady,
+  providerReady,
+  providerLabel,
 }: {
   onSubmitJob: (jobText: string) => void;
   onEditMasterResume: () => void;
+  onOpenSettings: () => void;
   masterResumeReady: boolean;
+  providerReady: boolean;
+  providerLabel: string;
 }) {
+  const [jobText, setJobText] = useState("");
+  const canSubmit = masterResumeReady && providerReady && jobText.trim().length >= 40;
   return (
     <div className="flex min-h-full items-center justify-center px-7 pt-10 pb-20">
-      <div className="w-full max-w-[720px] text-center">
+      <div className="w-full max-w-[720px]">
         <div className="mb-[18px] inline-flex items-center gap-2 text-[11px] font-semibold tracking-[0.18em] text-[var(--muted)] uppercase">
-          <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" /> Prêt
+          <span className={`h-1.5 w-1.5 rounded-full ${providerReady ? "bg-[var(--accent)]" : "bg-[var(--warn)]"}`} />
+          {providerReady ? "Prêt" : `${providerLabel} non détecté`}
         </div>
         <h1 className="m-0 mb-3.5 font-[family-name:var(--font-display)] text-[40px] leading-[1.05] font-medium tracking-[-0.03em] text-balance text-[var(--ink)]">
           Quelle offre <em className="font-medium text-[var(--accent)] italic">adapter</em>{" "}
           aujourd&apos;hui ?
         </h1>
-        <p className="mx-auto mt-0 mb-[30px] max-w-[540px] text-[15.5px] leading-[1.55] text-pretty text-[var(--ink-3)]">
+        <p className="mt-0 mb-[24px] max-w-[540px] text-[15.5px] leading-[1.55] text-pretty text-[var(--ink-3)]">
           Collez une description de poste pour commencer. Je vais comparer à votre CV, vous poser
           quelques questions, puis générer une version adaptée — sans rien inventer.
         </p>
+        {!providerReady && (
+          <div className="mb-4 flex items-start justify-between gap-3 rounded-[10px] border border-[rgba(181,136,46,0.22)] bg-[var(--warn-soft)] px-3 py-2.5 text-[var(--warn)]">
+            <span>
+              <strong>{providerLabel}</strong> n&apos;est pas détecté sur votre machine. Aucune
+              analyse ne sera lancée tant que le CLI n&apos;est pas installé et accessible.
+            </span>
+            <button
+              className="ml-auto inline-flex items-center gap-1 rounded-md border border-[rgba(181,136,46,0.32)] bg-[var(--card)] px-2 py-1 text-[12px] font-medium text-[var(--ink-2)] whitespace-nowrap hover:bg-[var(--card-2)]"
+              type="button"
+              onClick={onOpenSettings}
+            >
+              Configurer
+            </button>
+          </div>
+        )}
         {!masterResumeReady && (
-          <div className="mx-auto mt-[18px] max-w-[520px] rounded-[10px] border border-[rgba(181,136,46,0.22)] bg-[var(--warn-soft)] px-3 py-2.5 text-[var(--warn)]">
+          <div className="mb-4 rounded-[10px] border border-[rgba(181,136,46,0.22)] bg-[var(--warn-soft)] px-3 py-2.5 text-[var(--warn)]">
             Ajoutez d&apos;abord votre CV maître pour lancer une adaptation.
           </div>
         )}
-        <div className="mx-auto grid max-w-[560px] grid-cols-2 gap-2.5 text-left max-[980px]:grid-cols-1">
+        <div className="rounded-[14px] border border-[var(--line)] bg-[var(--card)] px-[18px] py-4 shadow-[var(--shadow-sm)]">
+          <div className="mb-2 flex items-center gap-2 font-[family-name:var(--font-display)] text-[15px] font-medium tracking-[-0.01em] text-[var(--ink)]">
+            <FileText className="h-7 w-7 rounded-[7px] bg-[var(--accent-tint)] p-[7px] text-[var(--accent)]" />
+            Description du poste
+          </div>
+          <textarea
+            className="min-h-[180px] w-full resize-y rounded-[10px] border border-[var(--line)] bg-[var(--card-2)] px-[13px] py-[11px] text-[13.5px] leading-[1.55] text-[var(--ink-2)] outline-none focus:border-[var(--accent)] focus:bg-[var(--card)] focus:shadow-[var(--focus)] disabled:cursor-not-allowed disabled:opacity-60"
+            value={jobText}
+            disabled={!masterResumeReady || !providerReady}
+            onChange={(event) => setJobText(event.target.value)}
+            placeholder={
+              providerReady
+                ? "Collez ici l'offre d'emploi complète (titre, missions, prérequis)…"
+                : `Configurez ${providerLabel} pour activer la saisie.`
+            }
+          />
+          <div className="mt-2.5 flex items-center justify-between gap-3 text-xs text-[var(--muted)]">
+            <span>
+              {jobText.trim().length > 0
+                ? `${jobText.trim().length} caractères`
+                : providerReady
+                  ? `Analyse via ${providerLabel} (CLI local).`
+                  : `${providerLabel} requis pour lancer l'analyse.`}
+            </span>
+            <button
+              className={primarySmallButton}
+              type="button"
+              disabled={!canSubmit}
+              onClick={() => {
+                onSubmitJob(jobText);
+                setJobText("");
+              }}
+            >
+              <ArrowUp size={12} /> Lancer l&apos;analyse
+            </button>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2 text-[13px] text-[var(--muted)]">
           <button
-            className="rounded-[10px] border border-[var(--line)] bg-[var(--card)] px-4 py-3.5 shadow-[var(--shadow-sm)] transition-all hover:-translate-y-0.5 hover:border-[var(--line-2)] hover:shadow-[var(--shadow-md)] disabled:cursor-not-allowed disabled:opacity-50 [&_span]:block [&_span]:text-[12.5px] [&_span]:leading-[1.45] [&_span]:text-[var(--muted)] [&_strong]:mb-[3px] [&_strong]:block [&_strong]:text-[13.5px] [&_strong]:font-medium [&_strong]:text-[var(--ink)] [&_svg]:hidden"
-            type="button"
-            onClick={() => onSubmitJob(SAMPLE_JOB_TEXT)}
-            disabled={!masterResumeReady}
-          >
-            <FileText size={16} />
-            <strong>Coller une offre</strong>
-            <span>Charge un exemple complet pour tester le flux.</span>
-          </button>
-          <button
-            className="rounded-[10px] border border-[var(--line)] bg-[var(--card)] px-4 py-3.5 shadow-[var(--shadow-sm)] transition-all hover:-translate-y-0.5 hover:border-[var(--line-2)] hover:shadow-[var(--shadow-md)] disabled:cursor-not-allowed disabled:opacity-50 [&_span]:block [&_span]:text-[12.5px] [&_span]:leading-[1.45] [&_span]:text-[var(--muted)] [&_strong]:mb-[3px] [&_strong]:block [&_strong]:text-[13.5px] [&_strong]:font-medium [&_strong]:text-[var(--ink)] [&_svg]:hidden"
-            type="button"
-            disabled
-          >
-            <Link size={16} />
-            <strong>Depuis une URL</strong>
-            <span>LinkedIn, Welcome to the Jungle, Lever, Ashby.</span>
-          </button>
-          <button
-            className="rounded-[10px] border border-[var(--line)] bg-[var(--card)] px-4 py-3.5 shadow-[var(--shadow-sm)] transition-all hover:-translate-y-0.5 hover:border-[var(--line-2)] hover:shadow-[var(--shadow-md)] disabled:cursor-not-allowed disabled:opacity-50 [&_span]:block [&_span]:text-[12.5px] [&_span]:leading-[1.45] [&_span]:text-[var(--muted)] [&_strong]:mb-[3px] [&_strong]:block [&_strong]:text-[13.5px] [&_strong]:font-medium [&_strong]:text-[var(--ink)] [&_svg]:hidden"
-            type="button"
-            disabled
-          >
-            <FolderOpen size={16} />
-            <strong>Reprendre une session</strong>
-            <span>Voir vos adaptations récentes.</span>
-          </button>
-          <button
-            className="rounded-[10px] border border-[var(--line)] bg-[var(--card)] px-4 py-3.5 shadow-[var(--shadow-sm)] transition-all hover:-translate-y-0.5 hover:border-[var(--line-2)] hover:shadow-[var(--shadow-md)] disabled:cursor-not-allowed disabled:opacity-50 [&_span]:block [&_span]:text-[12.5px] [&_span]:leading-[1.45] [&_span]:text-[var(--muted)] [&_strong]:mb-[3px] [&_strong]:block [&_strong]:text-[13.5px] [&_strong]:font-medium [&_strong]:text-[var(--ink)] [&_svg]:hidden"
+            className="inline-flex items-center gap-1.5 rounded-md border border-[var(--line)] bg-[var(--card-2)] px-2.5 py-1 hover:border-[var(--line-2)] hover:text-[var(--ink-2)]"
             type="button"
             onClick={onEditMasterResume}
           >
-            <Pencil size={16} />
-            <strong>Modifier le CV de base</strong>
-            <span>Mettre à jour le CV maître avant adaptation.</span>
+            <Pencil size={13} /> Modifier le CV de base
           </button>
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-[var(--line)] px-2.5 py-1 text-[var(--muted-2)]">
+            <Link size={13} /> Import URL — bientôt
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-[var(--line)] px-2.5 py-1 text-[var(--muted-2)]">
+            <FolderOpen size={13} /> Reprendre une session — bientôt
+          </span>
         </div>
       </div>
     </div>
@@ -457,11 +496,14 @@ function Composer({
 export function ChatPane({
   session,
   masterResumeReady,
+  providerReady,
+  providerLabel,
   isGenerating,
   onSubmitJob,
   onGenerate,
   onAnswerQuestion,
   onEditMasterResume,
+  onOpenSettings,
 }: ChatPaneProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -476,10 +518,13 @@ export function ChatPane({
           <Welcome
             onSubmitJob={onSubmitJob}
             onEditMasterResume={onEditMasterResume}
+            onOpenSettings={onOpenSettings}
             masterResumeReady={masterResumeReady}
+            providerReady={providerReady}
+            providerLabel={providerLabel}
           />
         </div>
-        <Composer disabled={!masterResumeReady} onSubmitJob={onSubmitJob} />
+        <Composer disabled={!masterResumeReady || !providerReady} onSubmitJob={onSubmitJob} />
       </section>
     );
   }
