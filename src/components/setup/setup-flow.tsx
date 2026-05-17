@@ -7,15 +7,12 @@ import {
   Code2,
   Eye,
   FileUp,
-  KeyRound,
-  RefreshCw,
   Terminal,
   TestTube,
 } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { parseResumeHtml } from "@/lib/parsers/parse-resume-html";
-import { FALLBACK_MODELS } from "@/lib/llm/models-client";
 import { SAMPLE_RESUME_HTML } from "@/lib/resumeforge/sample-data";
 import { type AIProviderId, type ProviderStatus } from "@/lib/schemas/settings.schema";
 
@@ -43,20 +40,14 @@ const providerStatusClass: Record<ProviderStatus, string> = {
     "border-[rgba(181,57,47,0.22)] bg-[var(--danger-soft)] text-[var(--danger)] [&>span]:bg-[var(--danger)]",
 };
 
-type ModelsStatus = "idle" | "loading" | "loaded" | "error";
-
 export interface SetupFlowProps {
   step: "setup-ai" | "setup-cv";
   selectedProvider: AIProviderId;
   providerStatus: Record<AIProviderId, ProviderStatus>;
-  providerApiKeys: Record<AIProviderId, string>;
   providerModels: Record<AIProviderId, string[]>;
-  providerModelsStatus: Record<AIProviderId, ModelsStatus>;
   selectedModels: Record<string, string>;
   onSelectProvider: (provider: AIProviderId) => void;
   onTestProvider: (provider: AIProviderId) => void;
-  onApiKeyChange: (provider: AIProviderId, key: string) => void;
-  onFetchModels: (provider: AIProviderId) => void;
   onSelectModel: (provider: AIProviderId, model: string) => void;
   onContinueFromAI: () => void;
   onBackToAI: () => void;
@@ -174,17 +165,12 @@ function ProviderCard({
   sub,
   desc,
   install,
-  keyPlaceholder,
   selected,
   status,
-  apiKey,
   models,
-  modelsStatus,
   selectedModel,
   onSelect,
   onTest,
-  onApiKeyChange,
-  onFetchModels,
   onSelectModel,
 }: {
   id: AIProviderId;
@@ -192,20 +178,14 @@ function ProviderCard({
   sub: string;
   desc: string;
   install: string;
-  keyPlaceholder: string;
   selected: boolean;
   status: ProviderStatus;
-  apiKey: string;
   models: string[];
-  modelsStatus: ModelsStatus;
   selectedModel: string;
   onSelect: (provider: AIProviderId) => void;
   onTest: (provider: AIProviderId) => void;
-  onApiKeyChange: (provider: AIProviderId, key: string) => void;
-  onFetchModels: (provider: AIProviderId) => void;
   onSelectModel: (provider: AIProviderId, model: string) => void;
 }) {
-  const [showKey, setShowKey] = useState(false);
   const [customModel, setCustomModel] = useState("");
   const isCustom = selectedModel === "__custom__";
 
@@ -284,86 +264,41 @@ function ProviderCard({
         </code>
       )}
 
-      {/* Model configuration — shown when card is selected */}
-      {selected && (
+      {/* Model row — always visible */}
+      {models.length > 0 && (
         <div
-          className="mt-4 border-t border-dashed border-[var(--line)] pt-4"
+          className="mt-4 border-t border-dashed border-[var(--line)] pt-3.5"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* API key row */}
-          <div className="mb-3">
-            <label className="mb-1.5 flex items-center gap-1.5 text-[11.5px] font-semibold text-[var(--muted)] uppercase tracking-[0.1em]">
-              <KeyRound size={11} /> Clé API
-            </label>
-            <div className="flex gap-1.5">
-              <div className="relative flex-1">
-                <input
-                  type={showKey ? "text" : "password"}
-                  className="w-full rounded-[8px] border border-[var(--line)] bg-[var(--card-2)] py-[7px] pr-8 pl-3 font-[family-name:var(--font-mono)] text-[12px] text-[var(--ink-2)] outline-none transition-colors focus:border-[var(--accent)] focus:bg-[var(--card)] focus:shadow-[var(--focus)]"
-                  placeholder={keyPlaceholder}
-                  value={apiKey}
-                  onChange={(e) => onApiKeyChange(id, e.target.value)}
-                  autoComplete="off"
-                  spellCheck={false}
-                />
-                <button
-                  type="button"
-                  className="absolute top-1/2 right-2 -translate-y-1/2 text-[var(--muted)] hover:text-[var(--ink)]"
-                  onClick={() => setShowKey((v) => !v)}
-                  tabIndex={-1}
-                >
-                  <Eye size={13} />
-                </button>
-              </div>
-              <button
-                className={`${smallButtonClass} shrink-0`}
-                type="button"
-                disabled={!apiKey.trim() || modelsStatus === "loading"}
-                onClick={() => onFetchModels(id)}
-              >
-                <RefreshCw
-                  size={12}
-                  className={modelsStatus === "loading" ? "animate-spin" : ""}
-                />
-                {modelsStatus === "loading" ? "Chargement…" : "Actualiser"}
-              </button>
-            </div>
-            {modelsStatus === "error" && (
-              <p className="mt-1.5 text-[12px] text-[var(--danger)]">
-                Clé invalide ou erreur réseau — liste locale utilisée.
-              </p>
-            )}
-            {modelsStatus === "loaded" && (
-              <p className="mt-1.5 text-[12px] text-[var(--success)]">
-                {models.length} modèles chargés depuis l'API.
-              </p>
-            )}
+          <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.1em] text-[var(--muted)] uppercase">
+            <Terminal size={10} /> Modèle
           </div>
-
-          {/* Model selector */}
-          <div>
-            <label className="mb-1.5 flex items-center gap-1.5 text-[11.5px] font-semibold text-[var(--muted)] uppercase tracking-[0.1em]">
-              <Terminal size={11} /> Modèle
-            </label>
-            <ModelSelect
-              id={id}
-              models={models}
-              selected={selectedModel}
-              onSelect={(m) => onSelectModel(id, m)}
-            />
-            {isCustom && (
-              <input
-                type="text"
-                className="mt-1.5 w-full rounded-[8px] border border-[var(--line)] bg-[var(--card-2)] px-3 py-[7px] font-[family-name:var(--font-mono)] text-[12px] text-[var(--ink-2)] outline-none transition-colors focus:border-[var(--accent)] focus:bg-[var(--card)] focus:shadow-[var(--focus)]"
-                placeholder="nom-du-modèle"
-                value={customModel}
-                onChange={(e) => {
-                  setCustomModel(e.target.value);
-                  if (e.target.value) onSelectModel(id, e.target.value);
-                }}
+          {selected ? (
+            <>
+              <ModelSelect
+                id={id}
+                models={models}
+                selected={selectedModel}
+                onSelect={(m) => onSelectModel(id, m)}
               />
-            )}
-          </div>
+              {isCustom && (
+                <input
+                  type="text"
+                  className="mt-1.5 w-full rounded-[8px] border border-[var(--line)] bg-[var(--card-2)] px-3 py-[7px] font-[family-name:var(--font-mono)] text-[12px] text-[var(--ink-2)] outline-none transition-colors focus:border-[var(--accent)] focus:bg-[var(--card)] focus:shadow-[var(--focus)]"
+                  placeholder="nom-exact-du-modèle"
+                  value={customModel}
+                  onChange={(e) => {
+                    setCustomModel(e.target.value);
+                    if (e.target.value) onSelectModel(id, e.target.value);
+                  }}
+                />
+              )}
+            </>
+          ) : (
+            <div className="rounded-[8px] border border-[var(--line)] bg-[var(--bg-2)] px-3 py-[7px] font-[family-name:var(--font-mono)] text-[12px] text-[var(--muted)]">
+              {selectedModel || models[0]}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -395,14 +330,12 @@ function SetupAI(props: SetupFlowProps) {
             {...provider}
             selected={props.selectedProvider === provider.id}
             status={props.providerStatus[provider.id]}
-            apiKey={props.providerApiKeys[provider.id]}
             models={props.providerModels[provider.id]}
-            modelsStatus={props.providerModelsStatus[provider.id]}
-            selectedModel={props.selectedModels[provider.id] ?? props.providerModels[provider.id][0] ?? ""}
+            selectedModel={
+              props.selectedModels[provider.id] ?? props.providerModels[provider.id][0] ?? ""
+            }
             onSelect={props.onSelectProvider}
             onTest={props.onTestProvider}
-            onApiKeyChange={props.onApiKeyChange}
-            onFetchModels={props.onFetchModels}
             onSelectModel={props.onSelectModel}
           />
         ))}
@@ -413,8 +346,8 @@ function SetupAI(props: SetupFlowProps) {
           size={15}
         />
         <span>
-          Votre clé API reste dans la mémoire de l&apos;application. Elle n&apos;est pas stockée
-          sur disque. Le mode local déterministe reste disponible hors-ligne.
+          Vos clés restent dans la configuration du CLI choisi. Le mode local déterministe reste
+          disponible pour travailler hors-ligne.
         </span>
       </div>
       <div className="mt-7 flex justify-end gap-2.5">

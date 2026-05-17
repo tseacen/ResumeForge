@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 
 import { ChatPane } from "@/components/chat/chat-pane";
 import { Sidebar } from "@/components/layout/sidebar";
@@ -15,7 +15,7 @@ import {
 } from "@/lib/resumeforge/agent";
 import { buildCvDocument } from "@/lib/resumeforge/cv-document";
 import { loadPersistedState, savePersistedState } from "@/lib/resumeforge/storage";
-import { FALLBACK_MODELS, fetchModelsForProvider } from "@/lib/llm/models-client";
+import { FALLBACK_MODELS } from "@/lib/llm/models-client";
 import { type ResumeForgePersistedState, type ResumeForgeState } from "@/lib/schemas/app.schema";
 import { type AdaptationSession, type AppPhase } from "@/lib/schemas/session.schema";
 import { type AIProviderId, type ProviderStatus } from "@/lib/schemas/settings.schema";
@@ -224,24 +224,11 @@ export function ResumeForgeApp() {
   const didLoadRef = useRef(false);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  type ModelsStatus = "idle" | "loading" | "loaded" | "error";
-  const defaultModelsStatus: Record<AIProviderId, ModelsStatus> = {
-    "claude-code": "idle",
-    "openai-codex": "idle",
-    mock: "idle",
-  };
-  const [providerApiKeys, setProviderApiKeys] = useState<Record<AIProviderId, string>>({
-    "claude-code": "",
-    "openai-codex": "",
-    mock: "",
-  });
-  const [providerModels, setProviderModels] = useState<Record<AIProviderId, string[]>>({
+  const providerModels: Record<AIProviderId, string[]> = {
     "claude-code": FALLBACK_MODELS["claude-code"],
     "openai-codex": FALLBACK_MODELS["openai-codex"],
     mock: [],
-  });
-  const [providerModelsStatus, setProviderModelsStatus] =
-    useState<Record<AIProviderId, ModelsStatus>>(defaultModelsStatus);
+  };
 
   useEffect(() => {
     const persisted = loadPersistedState();
@@ -258,28 +245,6 @@ export function ResumeForgeApp() {
     if (!state.masterResumeHtml) return null;
     return buildCvDocument(parseResumeHtml(state.masterResumeHtml));
   }, [state.masterResumeHtml]);
-
-  function handleApiKeyChange(provider: AIProviderId, key: string) {
-    setProviderApiKeys((prev) => ({ ...prev, [provider]: key }));
-    setProviderModelsStatus((prev) => ({ ...prev, [provider]: "idle" }));
-  }
-
-  const handleFetchModels = useCallback(
-    async (provider: AIProviderId) => {
-      const apiKey = providerApiKeys[provider];
-      setProviderModelsStatus((prev) => ({ ...prev, [provider]: "loading" }));
-      const result = await fetchModelsForProvider(provider, apiKey);
-      setProviderModels((prev) => ({ ...prev, [provider]: result.models }));
-      setProviderModelsStatus((prev) => ({
-        ...prev,
-        [provider]: result.ok ? (result.source === "api" ? "loaded" : "idle") : "error",
-      }));
-      if (result.models.length > 0 && !state.settings.selectedModels?.[provider]) {
-        dispatch({ type: "settings/model", provider, model: result.models[0] });
-      }
-    },
-    [providerApiKeys, state.settings.selectedModels]
-  );
 
   function handleSelectModel(provider: AIProviderId, model: string) {
     dispatch({ type: "settings/model", provider, model });
@@ -359,14 +324,10 @@ export function ResumeForgeApp() {
             step={state.phase === "setup-ai" ? "setup-ai" : "setup-cv"}
             selectedProvider={state.settings.selectedProvider}
             providerStatus={state.providerStatus}
-            providerApiKeys={providerApiKeys}
             providerModels={providerModels}
-            providerModelsStatus={providerModelsStatus}
             selectedModels={state.settings.selectedModels ?? {}}
             onSelectProvider={(provider) => dispatch({ type: "provider/select", provider })}
             onTestProvider={handleProviderTest}
-            onApiKeyChange={handleApiKeyChange}
-            onFetchModels={handleFetchModels}
             onSelectModel={handleSelectModel}
             onContinueFromAI={() => dispatch({ type: "setup/ai-complete" })}
             onBackToAI={() => dispatch({ type: "settings/open" })}
