@@ -1,43 +1,23 @@
 # ResumeForge
 
-Local-first CV tailoring agent POC.
+Local-first CV tailoring agent (POC), built with Next.js + Tauri.
 
-ResumeForge helps a user adapt a master CV to a job offer without inventing facts. The app parses a resume HTML file, parses a job offer, scores compatibility, surfaces recruiter/ATS risks, asks validation questions when claims are not proven, and generates an adapted CV with an audit trail.
+ResumeForge helps users adapt a master CV to a job offer while preserving factual accuracy.  
+The core objective is simple: improve relevance without fabricating claims.
 
-## Current Direction
+## Why ResumeForge
 
-The active UI follows the `ResumeForge-2.zip` mockup direction:
+Most CV optimization flows either stay too generic or drift into hallucinated content.  
+ResumeForge is designed to be:
 
-- warm cream and terracotta visual system
-- fixed left sidebar with recent adaptations
-- compact topbar
-- setup flow for AI provider and master CV import
-- chat-first job offer analysis
-- inline diagnostic, validation, and generation cards
-- right-side CV preview with `Original`, `Adapted`, and `Diff` modes
+- local-first
+- traceable
+- deterministic where possible
+- strict about factual integrity
 
-The previous tabbed dashboard UI has been removed. Do not reintroduce `report-tab`, `resume-preview`, `audit-panel`, `missing-keywords`, `score-dashboard`, or `src/components/ui/*` unless explicitly requested.
+## Critical Rule: No Invented Resume Facts
 
-## Stack
-
-- Tauri
-- Next.js
-- React
-- TypeScript
-- Tailwind CSS v4
-- minimal global CSS for tokens, keyframes, base styles, and CV paper rendering
-- Zod
-- Cheerio
-- nanoid
-- lucide-react
-- pnpm
-- Vitest
-
-## Product Rules
-
-ResumeForge must never invent resume facts.
-
-Do not invent:
+ResumeForge must never invent:
 
 - skills
 - companies
@@ -50,9 +30,9 @@ Do not invent:
 - production experience
 - seniority
 
-Only use facts supported by the original CV HTML or explicitly validated by the user.
+Only use information supported by the source CV HTML or explicitly validated by the user.
 
-Generated CV changes must be traceable as:
+Generated changes are expected to be audited with statuses such as:
 
 - `proven`
 - `rewritten`
@@ -60,84 +40,121 @@ Generated CV changes must be traceable as:
 - `needs_user_validation`
 - `blocked`
 
-Only safe supported content should appear in the final CV.
+## Current Product Direction
 
-## Project Structure
+The active UI follows the `ResumeForge-2.zip` mockup direction:
+
+- warm cream and terracotta visual system
+- fixed left sidebar
+- compact topbar
+- setup flow for AI provider and master CV import
+- chat-centered job-offer flow
+- inline diagnostics and validation cards
+- right-side preview with `Original`, `Adapted`, and `Diff` modes
+
+The legacy tabbed dashboard UI is intentionally removed.
+
+## POC Scope
+
+Implemented target scope:
+
+- paste/import resume HTML
+- paste job offer text
+- parse and structure both inputs
+- compute compatibility score
+- generate recruiter-style gap analysis
+- generate adapted resume HTML
+- produce an audit trail for changes
+- keep data local-first
+
+Out of scope for this phase:
+
+- SaaS backend
+- auth/billing
+- remote database
+- scraping automation
+- browser extension
+
+## Tech Stack
+
+- Tauri v2
+- Next.js
+- React
+- TypeScript
+- Tailwind CSS v4
+- Zod
+- Cheerio
+- pnpm
+- Vitest
+
+## Repository Layout
 
 ```txt
 src/
   app/
-    globals.css
-    layout.tsx
-    page.tsx
   components/
-    resumeforge-app.tsx
     chat/
-      chat-pane.tsx
     layout/
-      sidebar.tsx
-      topbar.tsx
     preview/
-      preview-pane.tsx
     setup/
-      setup-flow.tsx
   lib/
-    analyze.ts
     parsers/
-      parse-job-text.ts
-      parse-resume-html.ts
     scoring/
-      score-compatibility.ts
     tailoring/
-      audit-generated-resume.ts
-      tailor-resume.ts
+    llm/
     resumeforge/
-      agent.ts
-      cv-document.ts
-      sample-data.ts
-      storage.ts
     schemas/
-      app.schema.ts
-      audit.schema.ts
-      chat.schema.ts
-      cv-document.schema.ts
-      job.schema.ts
-      resume.schema.ts
-      score.schema.ts
-      session.schema.ts
-      settings.schema.ts
   tests/
 src-tauri/
 docs/
 ```
 
-## Key Modules
+## Getting Started
 
-- `src/components/resumeforge-app.tsx`: top-level client state machine and app shell.
-- `src/components/setup/setup-flow.tsx`: AI provider setup and master CV import.
-- `src/components/chat/chat-pane.tsx`: chat stream, diagnostics, questions, generation CTA, composer.
-- `src/components/preview/preview-pane.tsx`: right-side CV preview and diff view.
-- `src/lib/resumeforge/agent.ts`: creates and completes adaptation sessions from deterministic analysis.
-- `src/lib/resumeforge/cv-document.ts`: maps parsed resume data into preview-ready CV documents.
-- `src/lib/resumeforge/storage.ts`: localStorage persistence.
-- `src/lib/analyze.ts`: deterministic parse, score, tailor, audit orchestration.
-- `src/lib/parsers/*`: resume and job parsing.
-- `src/lib/scoring/score-compatibility.ts`: deterministic scoring.
-- `src/lib/tailoring/*`: safe tailoring and audit logic.
+### Prerequisites
 
-## Commands
+- Node.js 22+
+- pnpm
+- Rust toolchain (for Tauri desktop builds)
 
-Use `rtk` when available:
+### Install
 
 ```bash
-rtk pnpm lint
-rtk pnpm test
-rtk pnpm build
-rtk git status
-rtk git diff
+pnpm install
 ```
 
-Fallback without RTK:
+### Run Web App
+
+```bash
+pnpm dev
+```
+
+### Run Desktop App (Tauri)
+
+```bash
+pnpm tauri:dev
+```
+
+### Production Build
+
+```bash
+pnpm build
+pnpm tauri:build
+```
+
+## Optional Environment Variables
+
+The app can work via in-app provider setup, but these variables are optionally supported:
+
+- `NEXT_PUBLIC_OPENAI_API_KEY`
+- `NEXT_PUBLIC_ANTHROPIC_API_KEY`
+- `NEXT_PUBLIC_GEMINI_API_KEY`
+- `OPENAI_API_KEY`
+- `ANTHROPIC_API_KEY`
+
+## Quality Checks
+
+Run before opening a PR:
 
 ```bash
 pnpm lint
@@ -145,31 +162,28 @@ pnpm test
 pnpm build
 ```
 
-Run the web app:
+If you use RTK locally, you can prefix commands with `rtk`.
 
-```bash
-pnpm dev
-```
+## CI/CD
 
-Run the desktop shell:
+GitHub workflows are configured for:
 
-```bash
-pnpm tauri:dev
-```
+- CI checks on PRs and pushes to `main`
+- dependency review on PRs
+- Tauri multi-platform release builds on version tags (`v*`)
 
-## Validation
+`main` is protected by rulesets, so contributions should go through pull requests.
 
-Before considering a change complete, run:
+## Contributing
 
-```bash
-rtk pnpm lint
-rtk pnpm test
-rtk pnpm build
-```
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a PR.
 
-Note: `next build` with Turbopack may need to run outside a restricted sandbox because CSS processing can spawn a worker that binds to a local port.
+## Security
 
-## Documentation
+For sensitive vulnerabilities, do not open a public issue.  
+Use GitHub private vulnerability reporting from the repository Security tab.
+
+## Additional Docs
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Roadmap](docs/ROADMAP.md)
