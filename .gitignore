@@ -40,3 +40,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Tauri build artifact (api routes temporairement mis de côté)
+/.tauri-api-stash/

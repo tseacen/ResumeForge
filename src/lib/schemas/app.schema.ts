@@ -23,6 +23,7 @@ export const ResumeForgeStateSchema = ResumeForgePersistedStateSchema.extend({
   providerStatus: z.object({
     "claude-code": ProviderStatusSchema,
     "openai-codex": ProviderStatusSchema,
+    "gemini-cli": ProviderStatusSchema,
     mock: ProviderStatusSchema,
   }),
   previewMode: z.enum(["original", "adapted", "diff"]).default("original"),

@@ -1,18 +1,19 @@
 import { z } from "zod";
 
-import { ResumeChangeAuditSchema } from "@/lib/schemas/audit.schema";
-import { ChatMessageSchema, ValidationQuestionSchema } from "@/lib/schemas/chat.schema";
-import { CvDocumentSchema } from "@/lib/schemas/cv-document.schema";
-import { ParsedJobSchema } from "@/lib/schemas/job.schema";
-import { ParsedResumeSchema } from "@/lib/schemas/resume.schema";
-import { CompatibilityScoreSchema } from "@/lib/schemas/score.schema";
+import {
+  ChatMessageSchema,
+  ClarificationQuestionSchema,
+  ScoreTableSchema,
+} from "@/lib/schemas/chat.schema";
 
 export const AppPhaseSchema = z.enum([
   "setup-ai",
   "setup-cv",
   "ready-empty",
-  "chat-diagnostic",
-  "chat-generating",
+  "chat-analyzing",
+  "chat-clarifying",
+  "chat-scoring",
+  "chat-scored",
   "chat-adapted",
 ]);
 
@@ -23,7 +24,7 @@ export const AdaptationSessionSummarySchema = z.object({
   title: z.string(),
   company: z.string().optional(),
   score: z.number().min(0).max(100).optional(),
-  status: z.enum(["diagnostic", "adapted"]).default("diagnostic"),
+  status: z.enum(["analyzing", "clarifying", "scoring", "scored", "adapted"]).default("analyzing"),
   updatedAt: z.string().datetime(),
 });
 
@@ -37,14 +38,10 @@ export const AdaptationSessionSchema = z.object({
   updatedAt: z.string().datetime(),
   phase: AppPhaseSchema,
   jobText: z.string(),
-  parsedJob: ParsedJobSchema.optional(),
-  parsedResume: ParsedResumeSchema.optional(),
-  score: CompatibilityScoreSchema.optional(),
-  originalDocument: CvDocumentSchema.optional(),
-  adaptedDocument: CvDocumentSchema.optional(),
-  tailoredHtml: z.string().optional(),
-  audits: z.array(ResumeChangeAuditSchema).default([]),
-  validationQuestions: z.array(ValidationQuestionSchema).default([]),
+  jobTitle: z.string().optional(),
+  jobSummary: z.string().optional(),
+  clarifications: z.array(ClarificationQuestionSchema).default([]),
+  scoreTable: ScoreTableSchema.optional(),
   messages: z.array(ChatMessageSchema),
 });
 

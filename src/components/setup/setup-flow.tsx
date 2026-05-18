@@ -11,6 +11,7 @@ import {
   TestTube,
 } from "lucide-react";
 import { BsAnthropic, BsOpenai } from "react-icons/bs";
+import { SiGooglegemini } from "react-icons/si";
 
 import { useRef, useState } from "react";
 
@@ -81,6 +82,15 @@ const providerMeta: Array<{
       desc: "Rapide et créatif pour itérer plusieurs variantes de formulation.",
       install: "npm install -g @openai/codex",
       keyPlaceholder: "sk-proj-…",
+    },
+    {
+      id: "gemini-cli",
+      icon: SiGooglegemini,
+      name: "Gemini CLI",
+      sub: "Google · CLI",
+      desc: "Contexte long et multimodal, bon pour parcourir un CV dense.",
+      install: "npm install -g @google/gemini-cli",
+      keyPlaceholder: "AIza…",
     },
   ];
 
@@ -319,7 +329,7 @@ function SetupAI(props: SetupFlowProps) {
         </p>
       </div>
       <StepRail current={1} />
-      <div className="mt-2 grid grid-cols-2 gap-3.5 max-[980px]:grid-cols-1">
+      <div className="mt-2 grid grid-cols-3 gap-3.5 max-[1100px]:grid-cols-2 max-[760px]:grid-cols-1">
         {providerMeta.map((provider) => (
           <ProviderCard
             key={provider.id}

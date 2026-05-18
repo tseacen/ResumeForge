@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const AIProviderIdSchema = z.enum(["claude-code", "openai-codex", "mock"]);
+export const AIProviderIdSchema = z.enum(["claude-code", "openai-codex", "gemini-cli", "mock"]);
 export type AIProviderId = z.infer<typeof AIProviderIdSchema>;
 
 export const ProviderStatusSchema = z.enum(["idle", "checking", "available", "unavailable"]);

@@ -1,277 +1,257 @@
 import { nanoid } from "nanoid";
 
-import { runAnalysis } from "@/lib/analyze";
-import { parseResumeHtml } from "@/lib/parsers/parse-resume-html";
-import {
-  buildAdaptedCvDocument,
-  buildCvDocument,
-  blockedClaims,
-} from "@/lib/resumeforge/cv-document";
 import {
   type ChatMessage,
-  type ChatNeed,
-  type ChatStatRow,
-  type ValidationQuestion,
+  type ClarificationQuestion,
+  type ScoreTable,
+  type ScoreTableRow,
 } from "@/lib/schemas/chat.schema";
 import {
   type AdaptationSession,
   type AdaptationSessionSummary,
 } from "@/lib/schemas/session.schema";
-import { type AnalysisResponse } from "@/lib/types";
+
+const USER_BUBBLE_TRUNCATE_AT = 520;
 
 function isoNow(): string {
   return new Date().toISOString();
 }
 
-function toneFor(value: number): ChatStatRow["tone"] {
-  if (value >= 80) return "good";
-  if (value >= 60) return "warn";
-  return "bad";
-}
-
-function sessionTitle(jobTitle: string | undefined, company: string | undefined): string {
+export function sessionTitle(jobTitle?: string | null, company?: string | null): string {
   if (jobTitle && company) return `${jobTitle} — ${company}`;
   if (jobTitle) return jobTitle;
   return "Nouvelle adaptation";
 }
 
-const USER_BUBBLE_TRUNCATE_AT = 520;
-
-function needsFromMissing(missingKeywords: string[]): ChatNeed[] {
-  return missingKeywords.slice(0, 6).map((term, index) => ({
-    term,
-    level: index < 2 ? "required" : index < 5 ? "preferred" : "bonus",
-  }));
+export function toneFor(value: number): ScoreTableRow["tone"] {
+  if (value >= 75) return "good";
+  if (value >= 55) return "warn";
+  return "bad";
 }
 
-function buildStatRows(sessionScore?: Exclude<AdaptationSession["score"], undefined>): ChatStatRow[] {
-  if (!sessionScore) return [];
-  return [
-    {
-      label: "Compétences clés",
-      value: sessionScore.technicalFit,
-      tone: toneFor(sessionScore.technicalFit),
-      icon: "target",
-    },
-    {
-      label: "Pertinence expérience",
-      value: sessionScore.recruiterFit,
-      tone: toneFor(sessionScore.recruiterFit),
-      icon: "briefcase",
-    },
-    {
-      label: "Mots-clés ATS",
-      value: sessionScore.ats,
-      tone: toneFor(sessionScore.ats),
-      icon: "tag",
-    },
-    {
-      label: "Séniorité",
-      value: sessionScore.seniorityFit,
-      tone: toneFor(sessionScore.seniorityFit),
-      icon: "layers",
-    },
-    {
-      label: "Marché / domaine",
-      value: sessionScore.marketFit,
-      tone: toneFor(sessionScore.marketFit),
-      icon: "chart",
-    },
-  ];
-}
-
-function buildQuestions(blockers: string[], missingKeywords: string[]): ValidationQuestion[] {
-  const blockerQuestions = blockers.slice(0, 2).map((blocker, index) => ({
-    id: `question-${index}-${nanoid(6)}`,
-    label: `Question ${index + 1}`,
-    question: `Pouvez-vous confirmer une expérience réelle liée à "${blocker}" ?`,
-    context:
-      "Je ne l'ajouterai pas au CV sans preuve explicite. Si ce n'est pas vrai, on le laisse en risque d'entretien.",
-    suggestedAnswers: [
-      "Oui, j'ai une expérience vérifiable",
-      "Non, ne pas l'ajouter",
-      "Je veux reformuler sans le revendiquer",
-    ],
-  }));
-
-  if (blockerQuestions.length > 0) return blockerQuestions;
-
-  return missingKeywords.slice(0, 2).map((keyword, index) => ({
-    id: `question-${index}-${nanoid(6)}`,
-    label: `Clarification ${index + 1}`,
-    question: `Le terme "${keyword}" existe-t-il déjà dans votre expérience, même s'il n'apparaît pas dans le CV ?`,
-    context:
-      "Une réponse positive peut devenir un fait validé par vous. Sinon, le mot-clé reste uniquement dans le diagnostic.",
-    suggestedAnswers: ["Oui, c'est exact", "Non", "À discuter en entretien seulement"],
-  }));
-}
-
-function buildDiagnosticMessages(
-  title: string,
-  jobText: string,
-  score: AdaptationSession["score"],
-  questions: ValidationQuestion[]
-): ChatMessage[] {
-  if (!score) return [];
-  const needs = needsFromMissing(score.missingKeywords);
-  const blockersLine = score.blockers.length
-    ? `${score.blockers.length} point${score.blockers.length > 1 ? "s" : ""} bloquant${score.blockers.length > 1 ? "s" : ""} détecté${score.blockers.length > 1 ? "s" : ""}.`
-    : "Aucun bloqueur majeur détecté.";
-
-  return [
-    { kind: "step", id: "step-offer", label: "Étape 1 · Offre reçue", done: true },
-    {
-      kind: "assistant",
-      id: "assistant-start",
-      body: ["Bonjour. J'ai reçu l'offre et je la compare à votre CV maître."],
-    },
-    {
-      kind: "user",
-      id: "user-job",
-      body: jobText,
-      truncated: jobText.length > USER_BUBBLE_TRUNCATE_AT,
-    },
-    {
-      kind: "assistant",
-      id: "assistant-diagnostic",
-      body: [
-        `J'ai parcouru l'offre **${title}**. Voici le diagnostic initial avant adaptation :`,
-        `${blockersLine} Je vais adapter uniquement les éléments déjà prouvés par votre CV ou explicitement validés par vous.`,
-      ],
-    },
-    {
-      kind: "stats",
-      id: "stats-diagnostic",
-      title: "Diagnostic initial",
-      score: score.global,
-      rows: buildStatRows(score),
-      needs,
-    },
-    ...questions.map((question) => ({
-      kind: "question" as const,
-      id: `message-${question.id}`,
-      question,
-    })),
-  ];
-}
+// ──────────────────────────────────────────────────────────────────────────────
+// CREATION
+// ──────────────────────────────────────────────────────────────────────────────
 
 export function initializeSession(jobText: string): AdaptationSession {
   const now = isoNow();
+  const userMessage: ChatMessage = {
+    kind: "user",
+    id: `user-${nanoid(6)}`,
+    body: jobText,
+    truncated: jobText.length > USER_BUBBLE_TRUNCATE_AT,
+  };
   return {
     id: nanoid(12),
-    title: "Analyse en cours...",
+    title: "Analyse en cours…",
     createdAt: now,
     updatedAt: now,
-    phase: "chat-diagnostic",
+    phase: "chat-analyzing",
     jobText,
-    audits: [],
-    validationQuestions: [],
+    clarifications: [],
     messages: [
-      { kind: "step", id: "step-offer", label: "Étape 1 · Offre reçue", done: true },
-      { kind: "user", id: "user-job", body: jobText, truncated: jobText.length > USER_BUBBLE_TRUNCATE_AT },
-      { kind: "assistant-typing", id: "typing-start", label: "Analyse en cours via IA locale..." }
+      userMessage,
+      { kind: "thinking", id: `thinking-${nanoid(6)}`, label: "Lecture de l'offre…" },
     ],
   };
 }
 
-export function buildSessionFromAnalysis(
-  jobText: string,
-  analysis: AnalysisResponse,
-  sessionId?: string
+// ──────────────────────────────────────────────────────────────────────────────
+// APPLY JOB ANALYSIS (étape 1)
+// ──────────────────────────────────────────────────────────────────────────────
+
+export function applyJobAnalysis(
+  session: AdaptationSession,
+  analysis: {
+    jobTitle: string;
+    company: string | null;
+    summary: string;
+    clarifications: Array<Omit<ClarificationQuestion, "answeredWith">>;
+  }
 ): AdaptationSession {
-  const tailoredResume = parseResumeHtml(analysis.tailored.html);
-  const originalDocument = buildCvDocument(analysis.resume);
-  const adaptedDocument = buildAdaptedCvDocument(tailoredResume, analysis.tailored.audits);
-  const title = sessionTitle(analysis.job.title, analysis.job.company);
-  const now = isoNow();
-  const questions = buildQuestions(analysis.score?.blockers || [], analysis.score?.missingKeywords || []);
+  const clarifications: ClarificationQuestion[] = analysis.clarifications.map((q) => ({
+    ...q,
+    answeredWith: undefined,
+  }));
+  const hasQuestions = clarifications.length > 0;
+
+  const messages: ChatMessage[] = [
+    ...session.messages.filter((m) => m.kind !== "thinking"),
+    {
+      kind: "assistant",
+      id: `assistant-summary-${nanoid(6)}`,
+      body: [
+        `Poste détecté : **${analysis.jobTitle}**${
+          analysis.company ? ` — ${analysis.company}` : ""
+        }.`,
+        analysis.summary,
+        hasQuestions
+          ? "Avant de scorer la compatibilité, j'aurais besoin de quelques précisions :"
+          : "Aucune ambiguïté détectée. Je passe directement au tableau de compatibilité.",
+      ],
+    },
+  ];
+
+  if (hasQuestions) {
+    messages.push({
+      kind: "clarifications",
+      id: `clarifications-${nanoid(6)}`,
+      questions: clarifications,
+    });
+  }
 
   return {
-    id: sessionId ?? nanoid(12),
-    title,
-    company: analysis.job.company,
-    createdAt: now,
-    updatedAt: now,
-    phase: "chat-diagnostic",
-    jobText,
-    parsedJob: analysis.job,
-    parsedResume: analysis.resume,
-    score: analysis.score,
-    originalDocument,
-    adaptedDocument,
-    tailoredHtml: analysis.tailored.html,
-    audits: analysis.tailored.audits,
-    validationQuestions: questions,
-    messages: buildDiagnosticMessages(title, jobText, analysis.score, questions),
+    ...session,
+    title: sessionTitle(analysis.jobTitle, analysis.company),
+    company: analysis.company ?? undefined,
+    jobTitle: analysis.jobTitle,
+    jobSummary: analysis.summary,
+    clarifications,
+    phase: hasQuestions ? "chat-clarifying" : "chat-scoring",
+    updatedAt: isoNow(),
+    messages,
   };
 }
 
-export function createSessionFromInputs(
-  masterResumeHtml: string,
-  jobText: string
-): AdaptationSession {
-  const analysis = runAnalysis(masterResumeHtml, jobText);
-  return buildSessionFromAnalysis(jobText, analysis);
-}
-
-export function applyTailoredAnalysis(
+export function setSessionThinking(
   session: AdaptationSession,
-  analysis: AnalysisResponse
+  label: string,
+  phase?: AdaptationSession["phase"]
 ): AdaptationSession {
-  const tailoredResume = parseResumeHtml(analysis.tailored.html);
-  const adaptedDocument = buildAdaptedCvDocument(tailoredResume, analysis.tailored.audits);
+  const withoutThinking = session.messages.filter((m) => m.kind !== "thinking");
   return {
     ...session,
-    parsedResume: analysis.resume,
-    parsedJob: analysis.job,
-    score: analysis.score,
-    tailoredHtml: analysis.tailored.html,
-    audits: analysis.tailored.audits,
-    adaptedDocument,
+    phase: phase ?? session.phase,
+    updatedAt: isoNow(),
+    messages: [...withoutThinking, { kind: "thinking", id: `thinking-${nanoid(6)}`, label }],
+  };
+}
+
+export function clearSessionThinking(session: AdaptationSession): AdaptationSession {
+  return {
+    ...session,
+    messages: session.messages.filter((m) => m.kind !== "thinking"),
     updatedAt: isoNow(),
   };
 }
 
-export function completeSession(
+// ──────────────────────────────────────────────────────────────────────────────
+// ANSWER A CLARIFICATION
+// ──────────────────────────────────────────────────────────────────────────────
+
+export function answerClarification(
   session: AdaptationSession,
-  options?: { llmUsed?: boolean; providerName?: string; model?: string }
+  questionId: string,
+  answer: string
 ): AdaptationSession {
-  const blocked = blockedClaims(session.audits);
-  const provenance = options?.llmUsed
-    ? `Génération via **${options.providerName ?? "IA"}**${options.model ? ` (${options.model})` : ""}.`
-    : "Génération en mode local déterministe (aucune IA configurée).";
-  const completeMessages: ChatMessage[] = [
-    ...session.messages,
-    { kind: "step", id: "step-generate", label: "Étape 2 · CV adapté généré", done: true },
-    { kind: "generating", id: "generation-done", label: "CV adapté prêt", done: true },
+  const clarifications = session.clarifications.map((q) =>
+    q.id === questionId ? { ...q, answeredWith: answer } : q
+  );
+  const messages = session.messages.map((m) => {
+    if (m.kind !== "clarifications") return m;
+    return {
+      ...m,
+      questions: m.questions.map((q) =>
+        q.id === questionId ? { ...q, answeredWith: answer } : q
+      ),
+    };
+  });
+  return { ...session, clarifications, messages, updatedAt: isoNow() };
+}
+
+export function allClarificationsAnswered(session: AdaptationSession): boolean {
+  if (session.clarifications.length === 0) return true;
+  return session.clarifications.every((q) => typeof q.answeredWith === "string" && q.answeredWith.length > 0);
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// APPLY SCORE (étape 2)
+// ──────────────────────────────────────────────────────────────────────────────
+
+export function applyScoreTable(
+  session: AdaptationSession,
+  report: {
+    global: number;
+    riskLevel: "low" | "medium" | "high";
+    verdict: string;
+    rows: Array<{ label: string; value: number; rationale: string }>;
+    strengths: string[];
+    weaknesses: string[];
+    blockers: string[];
+    missingKeywords: Array<{ term: string; level: "required" | "preferred" | "bonus"; reason?: string }>;
+    interviewRisks: string[];
+  }
+): AdaptationSession {
+  const table: ScoreTable = {
+    global: report.global,
+    riskLevel: report.riskLevel,
+    verdict: report.verdict,
+    rows: report.rows.map((r) => ({ ...r, tone: toneFor(r.value) })),
+    strengths: report.strengths,
+    weaknesses: report.weaknesses,
+    blockers: report.blockers,
+    missingKeywords: report.missingKeywords,
+    interviewRisks: report.interviewRisks,
+  };
+
+  const messages: ChatMessage[] = [
+    ...session.messages.filter((m) => m.kind !== "thinking"),
+    {
+      kind: "score-table",
+      id: `score-${nanoid(6)}`,
+      table,
+    },
     {
       kind: "assistant",
-      id: "assistant-complete",
-      body: [
-        `Le CV adapté est prêt avec un score de **${session.score?.global ?? 0}/100**.`,
-        provenance,
-        blocked.length
-          ? `${blocked.length} revendication${blocked.length > 1 ? "s" : ""} non prouvée${blocked.length > 1 ? "s" : ""} a été bloquée pour éviter toute hallucination.`
-          : "Aucune revendication non prouvée n'a été ajoutée.",
-      ],
+      id: `assistant-verdict-${nanoid(6)}`,
+      body: [report.verdict],
     },
   ];
 
   return {
     ...session,
-    phase: "chat-adapted",
+    scoreTable: table,
+    phase: "chat-scored",
     updatedAt: isoNow(),
-    messages: completeMessages,
+    messages,
   };
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// ERROR HANDLING
+// ──────────────────────────────────────────────────────────────────────────────
+
+export function setSessionError(session: AdaptationSession, message: string): AdaptationSession {
+  const cleaned = session.messages.filter((m) => m.kind !== "thinking" && m.kind !== "error");
+  return {
+    ...session,
+    updatedAt: isoNow(),
+    messages: [...cleaned, { kind: "error", id: `error-${nanoid(6)}`, message }],
+  };
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// SUMMARY (sidebar)
+// ──────────────────────────────────────────────────────────────────────────────
+
 export function summarizeSession(session: AdaptationSession): AdaptationSessionSummary {
+  const status: AdaptationSessionSummary["status"] =
+    session.phase === "chat-adapted"
+      ? "adapted"
+      : session.phase === "chat-scored"
+        ? "scored"
+        : session.phase === "chat-scoring"
+          ? "scoring"
+          : session.phase === "chat-clarifying"
+            ? "clarifying"
+            : "analyzing";
+
   return {
     id: session.id,
     title: session.title,
     company: session.company,
-    score: session.score?.global ?? 0,
-    status: session.phase === "chat-adapted" ? "adapted" : "diagnostic",
+    score: session.scoreTable?.global,
+    status,
     updatedAt: session.updatedAt,
   };
 }

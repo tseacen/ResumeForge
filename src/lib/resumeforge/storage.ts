@@ -2,6 +2,7 @@ import {
   ResumeForgePersistedStateSchema,
   type ResumeForgePersistedState,
 } from "@/lib/schemas/app.schema";
+import { AppSettingsSchema } from "@/lib/schemas/settings.schema";
 
 const STORAGE_KEY = "resumeforge.state.v1";
 
@@ -12,8 +13,27 @@ export function loadPersistedState(): ResumeForgePersistedState | null {
 
   try {
     const parsed: unknown = JSON.parse(raw);
-    const result = ResumeForgePersistedStateSchema.safeParse(parsed);
-    return result.success ? result.data : null;
+    const strict = ResumeForgePersistedStateSchema.safeParse(parsed);
+    if (strict.success) return strict.data;
+
+    // Migration douce : si la structure globale a évolué (sessions/score), on garde
+    // au moins les settings et le CV maître pour ne pas reset l'utilisateur.
+    if (parsed && typeof parsed === "object") {
+      const obj = parsed as Record<string, unknown>;
+      const settingsParse = AppSettingsSchema.safeParse(obj.settings);
+      if (settingsParse.success) {
+        return {
+          version: 1,
+          settings: settingsParse.data,
+          masterResumeHtml:
+            typeof obj.masterResumeHtml === "string" ? obj.masterResumeHtml : null,
+          sessions: [],
+          sessionArchive: [],
+          activeSession: null,
+        };
+      }
+    }
+    return null;
   } catch {
     return null;
   }

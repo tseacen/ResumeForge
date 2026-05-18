@@ -10,6 +10,7 @@ const execFileAsync = promisify(execFile);
 const CLI_BINARIES: Record<string, string[]> = {
   "claude-code": ["claude"],
   "openai-codex": ["codex"],
+  "gemini-cli": ["gemini"],
   mock: [],
 };
 
