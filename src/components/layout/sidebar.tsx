@@ -9,7 +9,7 @@ const sidebarRow =
   "group relative flex w-full items-stretch rounded-[7px] transition-colors hover:bg-[rgba(31,30,27,0.04)]";
 const activeSidebarRow = "bg-[var(--accent-soft)] [&_.session-title]:text-[var(--accent)]";
 const sidebarLink =
-  "flex flex-1 flex-col gap-px rounded-[7px] px-2.5 py-2 text-left text-[var(--ink-2)] focus:outline-none";
+  "flex min-w-0 flex-1 flex-col gap-px rounded-[7px] px-2.5 py-2 text-left text-[var(--ink-2)] focus:outline-none";
 
 interface SidebarProps {
   locale: AppLocale;
@@ -95,7 +95,7 @@ export function Sidebar({
                   type="button"
                   onClick={() => onSelectSession(session.id)}
                 >
-                  <div className="session-title overflow-hidden pr-7 text-[13px] leading-[1.35] font-medium text-ellipsis whitespace-nowrap text-[var(--ink-2)]">
+                  <div className="session-title block max-w-full truncate pr-7 text-[13px] leading-[1.35] font-medium text-[var(--ink-2)]">
                     {session.title}
                   </div>
                   <div className="flex items-center gap-1.5 text-[11px] text-[var(--muted-2)]">

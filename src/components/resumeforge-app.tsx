@@ -665,7 +665,7 @@ export function ResumeForgeApp() {
   const providerReady = state.providerStatus[state.settings.selectedProvider] === "available";
 
   return (
-    <div className="grid min-h-screen grid-cols-[232px_minmax(0,1fr)] max-[980px]:grid-cols-1">
+    <div className="grid min-h-screen grid-cols-[clamp(208px,22vw,280px)_minmax(0,1fr)] max-[980px]:grid-cols-1">
       <Sidebar
         locale={state.settings.language}
         sessions={state.sessions}
