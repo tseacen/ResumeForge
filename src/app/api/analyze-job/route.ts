@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { translate } from "@/lib/i18n";
+import { extractJobOfferUrlCandidate } from "@/lib/job-offer/input-validation";
+import { importJobOfferFromUrl, JobOfferImportError } from "@/lib/job-offer/url-import";
 import { isResolutionError, resolveProvider } from "@/lib/llm/resolve-provider";
 import { runAnalyzeJob } from "@/lib/llm/runner";
 import { devError, devLog, devTimer } from "@/lib/logger";
@@ -35,6 +38,32 @@ export async function POST(request: Request) {
     );
   }
 
+  let resolvedJobText = body.jobText;
+  const urlCandidate = extractJobOfferUrlCandidate(body.jobText);
+  if (urlCandidate) {
+    try {
+      const imported = await importJobOfferFromUrl(urlCandidate);
+      resolvedJobText = imported.jobText;
+      devLog("api/analyze-job", "job text imported from URL", {
+        source: imported.source,
+        sourceHost: imported.sourceHost,
+        chars: imported.jobText.length,
+      });
+    } catch (err) {
+      const details = err instanceof Error ? err.message : String(err);
+      const message = `${translate(body.language, "app.jobOfferUrlImportFailed")} (${details})`;
+      devError("api/analyze-job", "job URL import failed", {
+        error: details,
+        type: err instanceof JobOfferImportError ? "import" : "unknown",
+      });
+      endTimer();
+      return NextResponse.json(
+        { error: "url_import_failed", message },
+        { status: 502 }
+      );
+    }
+  }
+
   const resolved = await resolveProvider(body.provider, body.model);
   if (isResolutionError(resolved)) {
     devError("api/analyze-job", "provider unavailable", resolved);
@@ -53,7 +82,7 @@ export async function POST(request: Request) {
   try {
     const analysis = await runAnalyzeJob(resolved.provider, {
       resumeHtml: body.resumeHtml,
-      jobText: body.jobText,
+      jobText: resolvedJobText,
       language: body.language,
     });
     devLog("api/analyze-job", "analysis ready", {
