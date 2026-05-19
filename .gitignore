@@ -43,3 +43,9 @@ next-env.d.ts
 
 # Tauri build artifact (api routes temporairement mis de côté)
 /.tauri-api-stash/
+
+# AI agent memory files (internal dev tooling, not for public contributors)
+MEMORY.md
+
+# TypeScript build cache
+*.tsbuildinfo
