@@ -1,18 +1,14 @@
 // Façade client : la couche UI appelle ces fonctions sans se soucier du mode.
-// - En Tauri (window.__TAURI_INTERNALS__) : appelle plugin-shell + runner directement.
-// - Sinon (dev web Next.js) : poste sur les routes /api/*.
+// En mode web (Next.js dev/prod) : poste sur les routes /api/*.
+// En mode Tauri : poste sur les routes /api/* via la webview Tauri (même chemin).
+// L'appel direct au runner (cheerio, Node.js) est réservé aux scripts serveur.
 
 import { type CompatibilityReport, type JobAnalysis } from "@/lib/llm/prompts";
 import { type AIProviderId } from "@/lib/schemas/settings.schema";
+import { type TailoredResume } from "@/lib/schemas/tailoring.schema";
 
-import { runAnalyzeJob, runScore } from "./runner";
 import { isTauri } from "./runtime";
-import {
-  checkCliAvailableViaShell,
-  TauriClaudeProvider,
-  TauriCodexProvider,
-  TauriGeminiProvider,
-} from "./tauri-provider";
+import { checkCliAvailableViaShell } from "./tauri-provider";
 
 export interface AnalyzeJobInput {
   resumeHtml: string;
@@ -30,11 +26,14 @@ export interface ScoreInput {
   answers: Array<{ id: string; question: string; answer: string }>;
 }
 
-function buildTauriProvider(provider: AIProviderId, model?: string) {
-  if (provider === "claude-code") return new TauriClaudeProvider(model);
-  if (provider === "openai-codex") return new TauriCodexProvider(model);
-  if (provider === "gemini-cli") return new TauriGeminiProvider(model);
-  throw new Error(`Provider ${provider} non supporté en mode Tauri.`);
+export interface AdaptResumeInput {
+  resumeHtml: string;
+  jobText: string;
+  provider: AIProviderId;
+  model?: string;
+  jobAnalysis: JobAnalysis;
+  compatibilityReport: CompatibilityReport;
+  answers: Array<{ id: string; question: string; answer: string }>;
 }
 
 async function readJsonOrThrow<T>(response: Response): Promise<T> {
@@ -76,10 +75,6 @@ export async function checkCli(provider: AIProviderId): Promise<boolean> {
 // ──────────────────────────────────────────────────────────────────────────────
 
 export async function analyzeJob(input: AnalyzeJobInput): Promise<JobAnalysis> {
-  if (isTauri()) {
-    const provider = buildTauriProvider(input.provider, input.model);
-    return runAnalyzeJob(provider, { resumeHtml: input.resumeHtml, jobText: input.jobText });
-  }
   const res = await fetch("/api/analyze-job", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -94,15 +89,6 @@ export async function analyzeJob(input: AnalyzeJobInput): Promise<JobAnalysis> {
 // ──────────────────────────────────────────────────────────────────────────────
 
 export async function scoreCompatibility(input: ScoreInput): Promise<CompatibilityReport> {
-  if (isTauri()) {
-    const provider = buildTauriProvider(input.provider, input.model);
-    return runScore(provider, {
-      resumeHtml: input.resumeHtml,
-      jobText: input.jobText,
-      jobAnalysis: input.jobAnalysis,
-      answers: input.answers,
-    });
-  }
   const res = await fetch("/api/score", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -110,4 +96,18 @@ export async function scoreCompatibility(input: ScoreInput): Promise<Compatibili
   });
   const data = await readJsonOrThrow<{ report: CompatibilityReport }>(res);
   return data.report;
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// adaptResume
+// ──────────────────────────────────────────────────────────────────────────────
+
+export async function adaptResume(input: AdaptResumeInput): Promise<TailoredResume> {
+  const res = await fetch("/api/adapt-cv", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const data = await readJsonOrThrow<{ tailoredResume: TailoredResume }>(res);
+  return data.tailoredResume;
 }

@@ -6,6 +6,7 @@ const isTauriBuild = process.env.TAURI_BUILD === "1";
 
 const nextConfig: NextConfig = {
   ...(isTauriBuild ? { output: "export" } : {}),
+  serverExternalPackages: ["cheerio", "domhandler"],
 };
 
 export default nextConfig;

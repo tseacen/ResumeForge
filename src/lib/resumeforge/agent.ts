@@ -10,6 +10,7 @@ import {
   type AdaptationSession,
   type AdaptationSessionSummary,
 } from "@/lib/schemas/session.schema";
+import { type TailoredResume } from "@/lib/schemas/tailoring.schema";
 
 const USER_BUBBLE_TRUNCATE_AT = 520;
 
@@ -212,6 +213,50 @@ export function applyScoreTable(
     ...session,
     scoreTable: table,
     phase: "chat-scored",
+    updatedAt: isoNow(),
+    messages,
+  };
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// APPLY TAILORED RESUME (étape 3)
+// ──────────────────────────────────────────────────────────────────────────────
+
+export function applyTailoredResume(
+  session: AdaptationSession,
+  tailoredResume: TailoredResume
+): AdaptationSession {
+  const applied = tailoredResume.audit.filter((item) => item.status === "applied").length;
+  const blocked = tailoredResume.audit.filter((item) => item.status === "blocked").length;
+  const messages: ChatMessage[] = [
+    ...session.messages.filter((m) => m.kind !== "thinking"),
+    {
+      kind: "adaptation-result",
+      id: `adaptation-${nanoid(6)}`,
+      result: tailoredResume,
+    },
+    {
+      kind: "assistant",
+      id: `assistant-adapted-${nanoid(6)}`,
+      body: [
+        applied > 0
+          ? `${applied} modification${applied > 1 ? "s" : ""} sûre${
+              applied > 1 ? "s" : ""
+            } appliquée${applied > 1 ? "s" : ""} au CV adapté.`
+          : "Aucune modification n'a été appliquée, car rien n'était assez sûr à changer.",
+        blocked > 0
+          ? `${blocked} proposition${blocked > 1 ? "s" : ""} bloquée${
+              blocked > 1 ? "s" : ""
+            } pour éviter d'ajouter une information non prouvée ou de casser le rendu.`
+          : "Aucune proposition bloquée : l'audit est propre.",
+      ],
+    },
+  ];
+
+  return {
+    ...session,
+    tailoredResume,
+    phase: "chat-adapted",
     updatedAt: isoNow(),
     messages,
   };

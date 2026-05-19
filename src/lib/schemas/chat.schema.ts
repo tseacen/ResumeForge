@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { TailoredResumeSchema } from "@/lib/schemas/tailoring.schema";
+
 export const ScoreTableRowSchema = z.object({
   label: z.string(),
   value: z.number().min(0).max(100),
@@ -66,6 +68,11 @@ export const ChatMessageSchema = z.discriminatedUnion("kind", [
     kind: z.literal("score-table"),
     id: z.string(),
     table: ScoreTableSchema,
+  }),
+  z.object({
+    kind: z.literal("adaptation-result"),
+    id: z.string(),
+    result: TailoredResumeSchema,
   }),
   z.object({ kind: z.literal("error"), id: z.string(), message: z.string() }),
 ]);
