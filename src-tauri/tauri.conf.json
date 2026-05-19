@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "CV Tailor",
+  "productName": "ResumeForge",
   "version": "0.1.0",
-  "identifier": "com.cvtailor.app",
+  "identifier": "com.resumeforge.app",
   "build": {
     "frontendDist": "../out",
     "devUrl": "http://localhost:3000",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "CV Tailor",
+        "title": "ResumeForge",
         "width": 1280,
         "height": 900,
         "minWidth": 900,
