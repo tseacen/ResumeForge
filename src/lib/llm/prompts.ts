@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { type AppLocale } from "@/lib/i18n";
 import { type ResumeFact } from "@/lib/schemas/resume.schema";
 import {
   TailoringPlanSchema,
@@ -65,7 +66,8 @@ export const ANALYZE_JOB_SYSTEM = [
   "- Provide 2 to 4 relevant suggested answers.",
   "- Set `responseMode` to `single` when one answer is expected, and `multiple` when several answers may apply.",
   "",
-  "IMPORTANT — language: all text values must be in English.",
+  "IMPORTANT — language: all text values must be written in the `outputLanguage` requested in the user payload.",
+  "Keep job titles, company names, technologies, and quoted keywords in their original wording when that is more precise.",
   "",
   "Output: STRICT JSON, no prose, no markdown fences, no commentary.",
   "Schema:",
@@ -104,7 +106,8 @@ export const SCORE_SYSTEM = [
   "- Use the clarification answers to adjust scoring (e.g. if the candidate confirmed they used X, do not count it as missing).",
   "- Invent nothing. If the resume does not prove a skill and the user did not validate it, treat it as missing.",
   "",
-  "IMPORTANT — language: all text values must be in English.",
+  "IMPORTANT — language: all text values must be written in the `outputLanguage` requested in the user payload.",
+  "Keep technologies, product names, and quoted keywords in their original wording when that is more precise.",
   "",
   "Output: STRICT JSON, no prose, no markdown fences, no commentary.",
   "Schema:",
@@ -153,7 +156,7 @@ export const TAILOR_RESUME_SYSTEM = [
   "- If a keyword is missing or unsupported, list it in `skippedKeywords` instead of adding it to the CV.",
   "- Maximum 8 operations. Prefer summary and high-impact bullets over cosmetic changes.",
   "",
-  "IMPORTANT — language: audit text (`summary`, `reason`, `skippedKeywords.reason`) must be in English. Rewritten CV text must keep the language of the original CV.",
+  "IMPORTANT — language: audit text (`summary`, `reason`, `skippedKeywords.reason`) must be written in the `outputLanguage` requested in the user payload. Rewritten CV text must keep the language of the original CV.",
   "",
   "Output: STRICT JSON, no prose, no markdown fences, no commentary.",
   "Schema:",
@@ -191,13 +194,19 @@ function compactFacts(facts: ResumeFact[]): Array<{ id: string; category: string
   }));
 }
 
+function outputLanguage(locale: AppLocale): string {
+  return locale === "fr" ? "French" : "English";
+}
+
 export function buildAnalyzeJobUserPayload(params: {
   jobText: string;
   resumeFacts: ResumeFact[];
+  language: AppLocale;
 }): string {
   return JSON.stringify(
     {
       task: "analyze_job_and_detect_clarifications",
+      outputLanguage: outputLanguage(params.language),
       jobText: params.jobText,
       resumeFacts: compactFacts(params.resumeFacts),
     },
@@ -211,10 +220,12 @@ export function buildScoreUserPayload(params: {
   resumeFacts: ResumeFact[];
   jobAnalysis: JobAnalysis;
   answers: Array<{ id: string; question: string; answer: string }>;
+  language: AppLocale;
 }): string {
   return JSON.stringify(
     {
       task: "score_compatibility",
+      outputLanguage: outputLanguage(params.language),
       jobText: params.jobText,
       jobAnalysis: params.jobAnalysis,
       resumeFacts: compactFacts(params.resumeFacts),
@@ -231,10 +242,12 @@ export function buildTailorResumeUserPayload(params: {
   jobAnalysis: JobAnalysis;
   compatibilityReport: CompatibilityReport;
   answers: Array<{ id: string; question: string; answer: string }>;
+  language: AppLocale;
 }): string {
   return JSON.stringify(
     {
       task: "tailor_resume_rewrite_plan",
+      outputLanguage: outputLanguage(params.language),
       jobText: params.jobText,
       jobAnalysis: params.jobAnalysis,
       compatibilityReport: params.compatibilityReport,

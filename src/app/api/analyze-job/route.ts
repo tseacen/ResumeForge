@@ -8,11 +8,16 @@ import { AIProviderIdSchema } from "@/lib/schemas/settings.schema";
 
 export const runtime = "nodejs";
 
+function aiNoResponse(language: "en" | "fr"): string {
+  return language === "fr" ? "L'IA n'a pas répondu." : "The AI did not respond.";
+}
+
 const BodySchema = z.object({
   resumeHtml: z.string().min(20),
   jobText: z.string().min(20),
   provider: AIProviderIdSchema.optional(),
   model: z.string().optional(),
+  language: z.enum(["en", "fr"]).default("en"),
 });
 
 export async function POST(request: Request) {
@@ -49,6 +54,7 @@ export async function POST(request: Request) {
     const analysis = await runAnalyzeJob(resolved.provider, {
       resumeHtml: body.resumeHtml,
       jobText: body.jobText,
+      language: body.language,
     });
     devLog("api/analyze-job", "analysis ready", {
       jobTitle: analysis.jobTitle,
@@ -64,7 +70,7 @@ export async function POST(request: Request) {
       },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "L'IA n'a pas répondu.";
+    const message = err instanceof Error ? err.message : aiNoResponse(body.language);
     devError("api/analyze-job", "run failed", message);
     endTimer();
     return NextResponse.json(

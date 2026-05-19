@@ -2,6 +2,7 @@
 
 import { Download, History, RefreshCw } from "lucide-react";
 
+import { createTranslator, type AppLocale } from "@/lib/i18n";
 import { type AppPhase } from "@/lib/schemas/session.schema";
 
 const smallButton =
@@ -11,17 +12,29 @@ const ghostButton =
 
 interface TopbarProps {
   phase: AppPhase;
+  locale: AppLocale;
   title: string | null;
   canExport: boolean;
   activeModel?: string;
+  onLanguageChange: (locale: AppLocale) => void;
   onReset: () => void;
   onExport: () => void;
 }
 
-export function Topbar({ phase, title, canExport, activeModel, onReset, onExport }: TopbarProps) {
+export function Topbar({
+  phase,
+  locale,
+  title,
+  canExport,
+  activeModel,
+  onLanguageChange,
+  onReset,
+  onExport,
+}: TopbarProps) {
+  const t = createTranslator(locale);
   const isSetup = phase === "setup-ai" || phase === "setup-cv";
-  const displayTitle = isSetup ? "Setup" : (title ?? "New adaptation");
-  const accent = isSetup ? "initial" : title ? "" : "adaptation";
+  const displayTitle = isSetup ? t("topbar.setup") : (title ?? t("topbar.newAdaptation"));
+  const accent = isSetup ? t("topbar.initial") : title ? "" : t("topbar.adaptation");
 
   return (
     <header className="flex flex-none items-center justify-between border-b border-[var(--line)] bg-[rgba(250,249,245,0.88)] px-7 py-3.5 backdrop-blur-[10px] max-[980px]:px-4 max-[980px]:py-3">
@@ -31,29 +44,38 @@ export function Topbar({ phase, title, canExport, activeModel, onReset, onExport
         </div>
         {title && !isSetup && (
           <span className="rounded-full border border-[var(--line)] bg-[var(--bg-2)] px-[9px] py-[3px] font-[family-name:var(--font-mono)] text-xs text-[var(--muted)]">
-            v3 · draft
+            {t("topbar.draft")}
           </span>
         )}
       </div>
       <div className="flex items-center gap-1.5">
+        <select
+          className="h-7 rounded-md border border-[var(--line)] bg-[var(--card)] px-2 py-0 font-[family-name:var(--font-mono)] text-[11.5px] font-medium text-[var(--ink-2)] uppercase outline-none transition-colors hover:border-[var(--line-2)] focus:border-[var(--accent)] focus:shadow-[var(--focus)]"
+          aria-label={t("topbar.languageAria")}
+          value={locale}
+          onChange={(event) => onLanguageChange(event.target.value as AppLocale)}
+        >
+          <option value="en">{t("lang.en")}</option>
+          <option value="fr">{t("lang.fr")}</option>
+        </select>
         {!isSetup && activeModel && (
           <span className="mr-3 font-[family-name:var(--font-mono)] text-xs text-[var(--muted-2)]">
-            via {activeModel}
+            {t("topbar.viaModel", { model: activeModel })}
           </span>
         )}
         {title && !isSetup && (
           <button className={`${ghostButton} max-[980px]:hidden`} type="button">
-            <History size={13} /> History
+            <History size={13} /> {t("topbar.history")}
           </button>
         )}
         {canExport && (
           <button className={smallButton} type="button" onClick={onExport}>
-            <Download size={13} /> Export
+            <Download size={13} /> {t("topbar.export")}
           </button>
         )}
         {!isSetup && (
           <button className={smallButton} type="button" onClick={onReset}>
-            <RefreshCw size={13} /> Reset
+            <RefreshCw size={13} /> {t("topbar.reset")}
           </button>
         )}
       </div>

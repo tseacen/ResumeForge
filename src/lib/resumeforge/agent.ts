@@ -1,5 +1,6 @@
 import { nanoid } from "nanoid";
 
+import { createTranslator, type AppLocale } from "@/lib/i18n";
 import {
   type ChatMessage,
   type ClarificationQuestion,
@@ -18,10 +19,15 @@ function isoNow(): string {
   return new Date().toISOString();
 }
 
-export function sessionTitle(jobTitle?: string | null, company?: string | null): string {
+export function sessionTitle(
+  jobTitle?: string | null,
+  company?: string | null,
+  locale: AppLocale = "en"
+): string {
+  const t = createTranslator(locale);
   if (jobTitle && company) return `${jobTitle} — ${company}`;
   if (jobTitle) return jobTitle;
-  return "New adaptation";
+  return t("agent.newAdaptation");
 }
 
 export function toneFor(value: number): ScoreTableRow["tone"] {
@@ -30,7 +36,8 @@ export function toneFor(value: number): ScoreTableRow["tone"] {
   return "bad";
 }
 
-export function initializeSession(jobText: string): AdaptationSession {
+export function initializeSession(jobText: string, locale: AppLocale = "en"): AdaptationSession {
+  const t = createTranslator(locale);
   const now = isoNow();
   const userMessage: ChatMessage = {
     kind: "user",
@@ -40,7 +47,7 @@ export function initializeSession(jobText: string): AdaptationSession {
   };
   return {
     id: nanoid(12),
-    title: "Analyzing…",
+    title: t("agent.analyzing"),
     createdAt: now,
     updatedAt: now,
     phase: "chat-analyzing",
@@ -48,7 +55,7 @@ export function initializeSession(jobText: string): AdaptationSession {
     clarifications: [],
     messages: [
       userMessage,
-      { kind: "thinking", id: `thinking-${nanoid(6)}`, label: "Reading job offer…" },
+      { kind: "thinking", id: `thinking-${nanoid(6)}`, label: t("agent.readingJobOffer") },
     ],
   };
 }
@@ -60,8 +67,10 @@ export function applyJobAnalysis(
     company: string | null;
     summary: string;
     clarifications: Array<Omit<ClarificationQuestion, "answeredWith">>;
-  }
+  },
+  locale: AppLocale = "en"
 ): AdaptationSession {
+  const t = createTranslator(locale);
   const clarifications: ClarificationQuestion[] = analysis.clarifications.map((q) => ({
     ...q,
     answeredWith: undefined,
@@ -74,13 +83,16 @@ export function applyJobAnalysis(
       kind: "assistant",
       id: `assistant-summary-${nanoid(6)}`,
       body: [
-        `Position detected: **${analysis.jobTitle}**${
-          analysis.company ? ` — ${analysis.company}` : ""
-        }.`,
+        t("agent.positionDetected", {
+          jobTitle: analysis.jobTitle,
+          companyPart: analysis.company
+            ? t("agent.companyPart", { company: analysis.company })
+            : "",
+        }),
         analysis.summary,
         hasQuestions
-          ? "Before scoring compatibility, I need a few clarifications:"
-          : "No ambiguity detected. Moving directly to the compatibility table.",
+          ? t("agent.beforeScoring")
+          : t("agent.noAmbiguity"),
       ],
     },
   ];
@@ -95,7 +107,7 @@ export function applyJobAnalysis(
 
   return {
     ...session,
-    title: sessionTitle(analysis.jobTitle, analysis.company),
+    title: sessionTitle(analysis.jobTitle, analysis.company, locale),
     company: analysis.company ?? undefined,
     jobTitle: analysis.jobTitle,
     jobSummary: analysis.summary,
@@ -204,10 +216,14 @@ export function applyScoreTable(
 
 export function applyTailoredResume(
   session: AdaptationSession,
-  tailoredResume: TailoredResume
+  tailoredResume: TailoredResume,
+  locale: AppLocale = "en"
 ): AdaptationSession {
+  const t = createTranslator(locale);
   const applied = tailoredResume.audit.filter((item) => item.status === "applied").length;
   const blocked = tailoredResume.audit.filter((item) => item.status === "blocked").length;
+  const appliedPlural = applied > 1 ? "s" : "";
+  const blockedPlural = blocked > 1 ? "s" : "";
   const messages: ChatMessage[] = [
     ...session.messages.filter((m) => m.kind !== "thinking"),
     {
@@ -220,11 +236,11 @@ export function applyTailoredResume(
       id: `assistant-adapted-${nanoid(6)}`,
       body: [
         applied > 0
-          ? `${applied} safe change${applied > 1 ? "s" : ""} applied to the adapted CV.`
-          : "No changes were applied — nothing was safe enough to modify.",
+          ? t("agent.safeChangesApplied", { count: applied, plural: appliedPlural })
+          : t("agent.noChangesApplied"),
         blocked > 0
-          ? `${blocked} suggestion${blocked > 1 ? "s" : ""} blocked to prevent unproven claims or broken layout.`
-          : "No suggestions blocked — the audit is clean.",
+          ? t("agent.suggestionsBlocked", { count: blocked, plural: blockedPlural })
+          : t("agent.noSuggestionsBlocked"),
       ],
     },
   ];

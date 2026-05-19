@@ -9,6 +9,10 @@ import { AIProviderIdSchema } from "@/lib/schemas/settings.schema";
 
 export const runtime = "nodejs";
 
+function aiNoResponse(language: "en" | "fr"): string {
+  return language === "fr" ? "L'IA n'a pas répondu." : "The AI did not respond.";
+}
+
 const AnswerSchema = z.object({
   id: z.string(),
   question: z.string(),
@@ -23,6 +27,7 @@ const BodySchema = z.object({
   answers: z.array(AnswerSchema).default([]),
   provider: AIProviderIdSchema.optional(),
   model: z.string().optional(),
+  language: z.enum(["en", "fr"]).default("en"),
 });
 
 export async function POST(request: Request) {
@@ -62,6 +67,7 @@ export async function POST(request: Request) {
       jobAnalysis: body.jobAnalysis,
       compatibilityReport: body.compatibilityReport,
       answers: body.answers,
+      language: body.language,
     });
     devLog("api/adapt-cv", "tailored CV ready", {
       applied: tailoredResume.audit.filter((item) => item.status === "applied").length,
@@ -77,7 +83,7 @@ export async function POST(request: Request) {
       },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "L'IA n'a pas répondu.";
+    const message = err instanceof Error ? err.message : aiNoResponse(body.language);
     devError("api/adapt-cv", "run failed", message);
     endTimer();
     return NextResponse.json({ error: "ai_call_failed", message }, { status: 502 });
