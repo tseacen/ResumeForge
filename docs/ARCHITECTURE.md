@@ -103,43 +103,37 @@ The deterministic engine remains separate from UI and LLM provider logic.
 
 Modules:
 
-- `src/lib/parsers/parse-resume-html.ts`
-- `src/lib/parsers/parse-job-text.ts`
-- `src/lib/scoring/score-compatibility.ts`
-- `src/lib/tailoring/tailor-resume.ts`
-- `src/lib/tailoring/audit-generated-resume.ts`
-- `src/lib/analyze.ts`
+- `src/lib/parsers/parse-resume-html.ts` — extracts structured facts from a resume HTML string
+- `src/lib/tailoring/adapt-resume.ts` — applies a LLM-generated rewrite plan to the original HTML, auditing every change
 
-`src/lib/analyze.ts` orchestrates:
-
-1. resume parsing
-2. job parsing
-3. compatibility scoring
-4. deterministic tailoring
-5. generated-resume audit
+Job parsing, compatibility scoring, and the tailoring plan are produced by the LLM layer (see below). `adapt-resume.ts` enforces truthfulness constraints deterministically before any change reaches the output HTML.
 
 ## ResumeForge Session Layer
 
-`src/lib/resumeforge/agent.ts` adapts deterministic analysis into the product experience:
+`src/lib/resumeforge/agent.ts` adapts LLM results into the product experience:
 
-- creates chat messages
-- creates validation questions
-- creates CV preview documents
-- builds session summaries
-- completes diagnostic sessions into adapted sessions
+- creates and mutates chat messages
+- manages clarification questions and answers
+- builds score tables and adaptation result messages
+- summarizes sessions for the sidebar
 
-`src/lib/resumeforge/cv-document.ts` maps parsed/tailored resume data into `CvDocument` for the preview pane.
+`src/lib/resumeforge/storage.ts` handles `localStorage` persistence with schema migration.
 
 ## LLM Provider Layer
 
-LLM interfaces and provider stubs live in:
+LLM interfaces and providers live in `src/lib/llm/`:
 
-- `src/lib/llm/provider.ts`
-- `src/lib/llm/mock-provider.ts`
-- `src/lib/llm/openai-provider.ts`
-- `src/lib/llm/anthropic-provider.ts`
-
-The current POC must still work without remote API calls. Deterministic mode should remain available and testable.
+- `provider.ts` — shared interface
+- `runner.ts` — orchestrates the three LLM steps: job analysis, scoring, tailoring plan
+- `prompts.ts` — system prompts and Zod schemas for LLM responses
+- `resolve-provider.ts` — resolves the active provider from settings, checks CLI availability
+- `client.ts` — UI-facing facade that routes calls to `/api/*` routes
+- `cli-provider.ts` / `tauri-provider.ts` — spawn the local CLI (Node.js and Tauri variants)
+- `anthropic-provider.ts` / `openai-provider.ts` — direct API calls with a key
+- `mock-provider.ts` — deterministic stub for tests
+- `models-client.ts` — fetches the model list from provider APIs, with a curated fallback
+- `parse-json.ts` — extracts and validates JSON from LLM output
+- `runtime.ts` — detects Tauri vs. web context
 
 ## Privacy Model
 
