@@ -5,6 +5,7 @@ import {
   ClarificationQuestionSchema,
   ScoreTableSchema,
 } from "@/lib/schemas/chat.schema";
+import { TailoredResumeSchema } from "@/lib/schemas/tailoring.schema";
 
 export const AppPhaseSchema = z.enum([
   "setup-ai",
@@ -42,6 +43,7 @@ export const AdaptationSessionSchema = z.object({
   jobSummary: z.string().optional(),
   clarifications: z.array(ClarificationQuestionSchema).default([]),
   scoreTable: ScoreTableSchema.optional(),
+  tailoredResume: TailoredResumeSchema.optional(),
   messages: z.array(ChatMessageSchema),
 });
 

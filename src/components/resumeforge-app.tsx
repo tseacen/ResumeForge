@@ -3,11 +3,12 @@
 import { useEffect, useReducer, useRef, useState } from "react";
 
 import { ChatPane } from "@/components/chat/chat-pane";
+import { ResizableWorkspace } from "@/components/layout/resizable-workspace";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { PreviewPane } from "@/components/preview/preview-pane";
 import { SetupFlow } from "@/components/setup/setup-flow";
-import { analyzeJob, checkCli, scoreCompatibility } from "@/lib/llm/client";
+import { adaptResume, analyzeJob, checkCli, scoreCompatibility } from "@/lib/llm/client";
 import { fetchModelsForProvider } from "@/lib/llm/models-client";
 import { devError, devLog, devTimer } from "@/lib/logger";
 import {
@@ -15,6 +16,7 @@ import {
   answerClarification,
   applyJobAnalysis,
   applyScoreTable,
+  applyTailoredResume,
   clearSessionThinking,
   initializeSession,
   setSessionError,
@@ -65,6 +67,13 @@ const SCORE_THINKING_PHASES = [
   "Rédaction du verdict…",
 ];
 
+const ADAPT_THINKING_PHASES = [
+  "Sélection des lignes modifiables…",
+  "Réécriture sans ajout de faits…",
+  "Validation des preuves du CV…",
+  "Application sur le HTML original…",
+];
+
 type Action =
   | { type: "hydrate"; state: ResumeForgePersistedState }
   | { type: "provider/select"; provider: AIProviderId }
@@ -77,6 +86,7 @@ type Action =
   | { type: "session/replace"; session: AdaptationSession }
   | { type: "session/select"; id: string }
   | { type: "session/delete"; id: string }
+  | { type: "preview/mode"; mode: ResumeForgeState["previewMode"] }
   | { type: "settings/open" }
   | { type: "error"; message: string | null };
 
@@ -127,7 +137,7 @@ function reducer(state: ResumeForgeState, action: Action): ResumeForgeState {
         settings,
         phase: phaseFromPersisted(action.state),
         providerStatus: providerDefaults,
-        previewMode: "original",
+        previewMode: action.state.activeSession?.phase === "chat-adapted" ? "diff" : "original",
         error: null,
       };
     }
@@ -181,7 +191,7 @@ function reducer(state: ResumeForgeState, action: Action): ResumeForgeState {
         ...state,
         ...upsertSession(state, action.session),
         phase: action.session.phase,
-        previewMode: "original",
+        previewMode: action.session.phase === "chat-adapted" ? "diff" : state.previewMode,
         error: null,
       };
     case "session/select": {
@@ -191,7 +201,7 @@ function reducer(state: ResumeForgeState, action: Action): ResumeForgeState {
         ...state,
         activeSession: selected,
         phase: selected.phase,
-        previewMode: "original",
+        previewMode: selected.phase === "chat-adapted" ? "diff" : "original",
       };
     }
     case "session/delete": {
@@ -212,6 +222,8 @@ function reducer(state: ResumeForgeState, action: Action): ResumeForgeState {
         error: null,
       };
     }
+    case "preview/mode":
+      return { ...state, previewMode: action.mode };
     case "settings/open":
       return { ...state, phase: "setup-ai" };
     case "error":
@@ -438,6 +450,47 @@ export function ResumeForgeApp() {
     await runJobAnalysis(session);
   }
 
+  function jobAnalysisFromSession(session: AdaptationSession) {
+    return {
+      jobTitle: session.jobTitle ?? session.title,
+      company: session.company ?? null,
+      summary: session.jobSummary ?? "",
+      clarifications: session.clarifications.map((q) => ({
+        id: q.id,
+        label: q.label,
+        question: q.question,
+        context: q.context,
+        responseMode: q.responseMode,
+        suggestedAnswers: q.suggestedAnswers,
+      })),
+    };
+  }
+
+  function answersFromSession(session: AdaptationSession) {
+    return session.clarifications
+      .filter((q): q is typeof q & { answeredWith: string } => Boolean(q.answeredWith))
+      .map((q) => ({ id: q.id, question: q.question, answer: q.answeredWith }));
+  }
+
+  function compatibilityReportFromSession(session: AdaptationSession) {
+    if (!session.scoreTable) return null;
+    return {
+      global: session.scoreTable.global,
+      riskLevel: session.scoreTable.riskLevel,
+      rows: session.scoreTable.rows.map(({ label, value, rationale }) => ({
+        label,
+        value,
+        rationale,
+      })),
+      strengths: session.scoreTable.strengths,
+      weaknesses: session.scoreTable.weaknesses,
+      blockers: session.scoreTable.blockers,
+      missingKeywords: session.scoreTable.missingKeywords,
+      interviewRisks: session.scoreTable.interviewRisks,
+      verdict: session.scoreTable.verdict,
+    };
+  }
+
   // ──────────────────────────────────────────────────────────────────────────
   // Étape 2 : scoring (déclenché soit auto, soit après réponse aux questions)
   // ──────────────────────────────────────────────────────────────────────────
@@ -460,22 +513,8 @@ export function ResumeForgeApp() {
       const report = await scoreCompatibility({
         resumeHtml: state.masterResumeHtml,
         jobText: scoringSession.jobText,
-        jobAnalysis: {
-          jobTitle: scoringSession.jobTitle ?? scoringSession.title,
-          company: scoringSession.company ?? null,
-          summary: scoringSession.jobSummary ?? "",
-          clarifications: scoringSession.clarifications.map((q) => ({
-            id: q.id,
-            label: q.label,
-            question: q.question,
-            context: q.context,
-            responseMode: q.responseMode,
-            suggestedAnswers: q.suggestedAnswers,
-          })),
-        },
-        answers: scoringSession.clarifications
-          .filter((q): q is typeof q & { answeredWith: string } => Boolean(q.answeredWith))
-          .map((q) => ({ id: q.id, question: q.question, answer: q.answeredWith })),
+        jobAnalysis: jobAnalysisFromSession(scoringSession),
+        answers: answersFromSession(scoringSession),
         provider: state.settings.selectedProvider,
         model: state.settings.selectedModels?.[state.settings.selectedProvider],
       });
@@ -514,9 +553,64 @@ export function ResumeForgeApp() {
     }
   }
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // Étape 3 : génération du CV adapté, appliquée localement au HTML original
+  // ──────────────────────────────────────────────────────────────────────────
+  async function runAdaptation(sessionForAdaptation: AdaptationSession) {
+    const compatibilityReport = compatibilityReportFromSession(sessionForAdaptation);
+    if (!state.masterResumeHtml || !compatibilityReport) return;
+
+    setIsBusy(true);
+    const endTimer = devTimer("app", "adapt-cv");
+
+    const adaptingSession = setSessionThinking(
+      clearTransientMessages(sessionForAdaptation),
+      ADAPT_THINKING_PHASES[0],
+      "chat-scored"
+    );
+    latestSessionRef.current = adaptingSession;
+    dispatch({ type: "session/replace", session: adaptingSession });
+
+    startThinkingRotation(adaptingSession.id, ADAPT_THINKING_PHASES, 1800, "chat-scored");
+
+    try {
+      const tailoredResume = await adaptResume({
+        resumeHtml: state.masterResumeHtml,
+        jobText: adaptingSession.jobText,
+        jobAnalysis: jobAnalysisFromSession(adaptingSession),
+        compatibilityReport,
+        answers: answersFromSession(adaptingSession),
+        provider: state.settings.selectedProvider,
+        model: state.settings.selectedModels?.[state.settings.selectedProvider],
+      });
+      stopThinkingRotation();
+
+      const fresh = latestSessionRef.current;
+      if (!fresh || fresh.id !== adaptingSession.id) return;
+      const adapted = applyTailoredResume(clearSessionThinking(fresh), tailoredResume);
+      latestSessionRef.current = adapted;
+      dispatch({ type: "session/replace", session: adapted });
+    } catch (err) {
+      stopThinkingRotation();
+      const message = err instanceof Error ? err.message : "L'IA n'a pas répondu.";
+      devError("app", "adapt CV failed", message);
+      const fresh = latestSessionRef.current;
+      if (fresh && fresh.id === adaptingSession.id) {
+        const errored = setSessionError(clearSessionThinking(fresh), message);
+        latestSessionRef.current = errored;
+        dispatch({ type: "session/replace", session: errored });
+      }
+    } finally {
+      endTimer();
+      setIsBusy(false);
+    }
+  }
+
   function handleAdaptCv() {
-    // Réservé pour l'étape suivante (génération du CV adapté).
-    devLog("app", "adapt CV requested — pas encore implémenté");
+    if (isBusy) return;
+    const current = latestSessionRef.current;
+    if (!current || !current.scoreTable) return;
+    void runAdaptation(current);
   }
 
   function handleRetry() {
@@ -533,6 +627,11 @@ export function ResumeForgeApp() {
 
     if (current.phase === "chat-scoring") {
       void runScoring(current);
+      return;
+    }
+
+    if (current.phase === "chat-scored" && current.scoreTable) {
+      void runAdaptation(current);
       return;
     }
 
@@ -582,30 +681,40 @@ export function ResumeForgeApp() {
           />
         ) : (
           <main className="flex flex-1 overflow-y-auto p-0">
-            <div className="grid h-full min-h-0 flex-1 grid-cols-[minmax(0,1fr)_minmax(320px,440px)] max-[980px]:grid-cols-1">
-              <ChatPane
-                session={state.activeSession}
-                masterResumeReady={Boolean(state.masterResumeHtml)}
-                providerReady={providerReady}
-                providerLabel={
-                  state.settings.selectedProvider === "claude-code"
-                    ? "Claude Code"
-                    : state.settings.selectedProvider === "openai-codex"
-                      ? "OpenAI Codex"
-                      : "Gemini CLI"
-                }
-                isBusy={isBusy}
-                onSubmitJob={handleSubmitJob}
-                onAnswerQuestion={handleAnswerClarification}
-                onAdaptCv={handleAdaptCv}
-                onRetry={handleRetry}
-                onEditMasterResume={() => dispatch({ type: "master/edit" })}
-                onOpenSettings={() => dispatch({ type: "settings/open" })}
-              />
-              {state.activeSession && (
-                <PreviewPane originalHtml={state.masterResumeHtml} />
-              )}
-            </div>
+            <ResizableWorkspace
+              left={
+                <ChatPane
+                  session={state.activeSession}
+                  masterResumeReady={Boolean(state.masterResumeHtml)}
+                  providerReady={providerReady}
+                  providerLabel={
+                    state.settings.selectedProvider === "claude-code"
+                      ? "Claude Code"
+                      : state.settings.selectedProvider === "openai-codex"
+                        ? "OpenAI Codex"
+                        : "Gemini CLI"
+                  }
+                  isBusy={isBusy}
+                  onSubmitJob={handleSubmitJob}
+                  onAnswerQuestion={handleAnswerClarification}
+                  onAdaptCv={handleAdaptCv}
+                  onRetry={handleRetry}
+                  onEditMasterResume={() => dispatch({ type: "master/edit" })}
+                  onOpenSettings={() => dispatch({ type: "settings/open" })}
+                />
+              }
+              right={
+                state.activeSession ? (
+                  <PreviewPane
+                    originalHtml={state.masterResumeHtml}
+                    adaptedHtml={state.activeSession.tailoredResume?.adaptedHtml ?? null}
+                    audit={state.activeSession.tailoredResume?.audit ?? []}
+                    mode={state.previewMode}
+                    onModeChange={(mode) => dispatch({ type: "preview/mode", mode })}
+                  />
+                ) : null
+              }
+            />
           </main>
         )}
       </div>

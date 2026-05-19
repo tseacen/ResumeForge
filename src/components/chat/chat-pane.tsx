@@ -3,12 +3,16 @@
 import {
   AlertCircle,
   ArrowUp,
+  Ban,
+  CheckCircle2,
   CircleHelp,
   FolderOpen,
+  GitCompare,
   Link as LinkIcon,
   Mic,
   Paperclip,
   Pencil,
+  ShieldCheck,
   Sparkles,
   TrendingUp,
 } from "lucide-react";
@@ -423,6 +427,81 @@ function ScoreTableCard({ table }: { table: ScoreTable }) {
   );
 }
 
+function AdaptationResultCard({
+  result,
+}: {
+  result: Extract<ChatMessage, { kind: "adaptation-result" }>["result"];
+}) {
+  const applied = result.audit.filter((item) => item.status === "applied");
+  const blocked = result.audit.filter((item) => item.status === "blocked");
+  const shownChanges = [...applied, ...blocked].slice(0, 4);
+
+  return (
+    <div className="overflow-hidden rounded-[14px] border border-[var(--line)] bg-[var(--card)] shadow-[var(--shadow-sm)]">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--line)] px-[18px] py-3.5">
+        <div>
+          <div className="flex items-center gap-2.5 font-[family-name:var(--font-display)] text-[15px] font-medium tracking-[-0.01em] text-[var(--ink)]">
+            <ShieldCheck className="h-[26px] w-[26px] rounded-[7px] bg-[var(--success-soft)] p-1.5 text-[var(--success)]" />
+            CV adapté généré
+          </div>
+          <p className="m-0 mt-1 max-w-[560px] text-[12.5px] leading-[1.45] text-[var(--muted)]">
+            {result.summary}
+          </p>
+        </div>
+        <div className="flex gap-1.5 text-[11.5px] font-medium">
+          <span className="inline-flex items-center gap-1 rounded-full border border-[var(--success)]/25 bg-[var(--success-soft)] px-2 py-1 text-[var(--success)]">
+            <CheckCircle2 size={12} /> {applied.length} appliquée
+            {applied.length > 1 ? "s" : ""}
+          </span>
+          <span className="inline-flex items-center gap-1 rounded-full border border-[var(--danger)]/20 bg-[var(--danger-soft)] px-2 py-1 text-[var(--danger)]">
+            <Ban size={12} /> {blocked.length} bloquée{blocked.length > 1 ? "s" : ""}
+          </span>
+        </div>
+      </div>
+      {shownChanges.length > 0 && (
+        <div className="divide-y divide-[var(--line)]">
+          {shownChanges.map((item) => (
+            <div key={item.id} className="grid gap-2 px-[18px] py-3 text-[12.5px]">
+              <div className="flex items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-1.5 font-medium text-[var(--ink-2)]">
+                  <GitCompare size={13} className="text-[var(--muted)]" />
+                  {item.status === "applied" ? "Modification sûre" : "Modification bloquée"}
+                </span>
+                <span
+                  className={`rounded-full px-2 py-[2px] text-[10.5px] font-semibold tracking-wider uppercase ${
+                    item.status === "applied"
+                      ? "bg-[var(--success-soft)] text-[var(--success)]"
+                      : "bg-[var(--danger-soft)] text-[var(--danger)]"
+                  }`}
+                >
+                  {item.targetKind}
+                </span>
+              </div>
+              <p className="m-0 text-[var(--muted)]">{item.reason}</p>
+              {item.validationNotes[0] && (
+                <p className="m-0 text-[11.5px] leading-[1.4] text-[var(--muted-2)]">
+                  {item.validationNotes[0]}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {result.skippedKeywords.length > 0 && (
+        <div className="border-t border-[var(--line)] bg-[var(--bg-2)] px-[18px] py-3 text-[12.5px] text-[var(--muted)]">
+          <span className="font-medium text-[var(--ink-2)]">Non ajoutés faute de preuve : </span>
+          {result.skippedKeywords.map((keyword, index) => (
+            <span key={keyword.term}>
+              {index > 0 ? ", " : ""}
+              <em className="font-[family-name:var(--font-mono)] not-italic">{keyword.term}</em>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Welcome({
   onEditMasterResume,
   onOpenSettings,
@@ -588,6 +667,8 @@ function renderMessage(
       );
     case "score-table":
       return <ScoreTableCard key={message.id} table={message.table} />;
+    case "adaptation-result":
+      return <AdaptationResultCard key={message.id} result={message.result} />;
     case "error":
       return <ErrorBox key={message.id} message={message.message} canRetry={canRetry} onRetry={onRetry} />;
     case "step":
@@ -633,7 +714,7 @@ export function ChatPane({
     );
   }
 
-  const showAdaptButton = session.phase === "chat-scored";
+  const showAdaptButton = session.phase === "chat-scored" && !isBusy;
 
   return (
     <section className="flex min-h-0 min-w-0 flex-col border-r border-[var(--line)] bg-[var(--bg)]">
@@ -650,7 +731,7 @@ export function ChatPane({
                   Le diagnostic est terminé. Je peux maintenant adapter votre CV à cette offre.
                 </span>
               </div>
-              <button className={primaryButton} type="button" onClick={onAdaptCv}>
+              <button className={primaryButton} type="button" onClick={onAdaptCv} disabled={isBusy}>
                 Adapter le CV
               </button>
             </div>

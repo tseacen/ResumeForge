@@ -1,6 +1,10 @@
 import { z } from "zod";
 
 import { type ResumeFact } from "@/lib/schemas/resume.schema";
+import {
+  TailoringPlanSchema,
+  type TailoringPlan,
+} from "@/lib/schemas/tailoring.schema";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // JOB ANALYSIS — étape 1
@@ -59,6 +63,8 @@ export const CompatibilityReportSchema = z.object({
 });
 
 export type CompatibilityReport = z.infer<typeof CompatibilityReportSchema>;
+
+export { TailoringPlanSchema, type TailoringPlan };
 
 // ──────────────────────────────────────────────────────────────────────────────
 // SYSTEM PROMPTS
@@ -148,6 +154,52 @@ export const SCORE_SYSTEM = [
   ),
 ].join("\n");
 
+export const TAILOR_RESUME_SYSTEM = [
+  "You are a meticulous CV editor. You receive a raw job offer, a compatibility report, facts extracted from the candidate's master resume, and optional user-validated clarification answers.",
+  "Your mission: propose a SMALL rewrite plan that adapts the existing CV to the role without recreating the CV.",
+  "",
+  "Critical safety rules:",
+  "- NEVER invent resume facts.",
+  "- Do not create companies, job titles, metrics, degrees, certifications, tools, responsibilities, seniority, or production experience that are not explicitly supported by resume facts or user clarification answers.",
+  "- Do NOT output full HTML. The app will apply exact text replacements locally to preserve layout and proportions.",
+  "- Each operation must target an exact `originalText` copied from one resume fact. If you cannot copy the exact text, skip the change.",
+  "- Keep the same language, tone, tense, and factual level as `originalText`. Do not translate the CV.",
+  "- Preserve role titles, company names, dates, education, contact details, and links.",
+  "- Rewrites should be compact: ideally same length as the original, never bloated.",
+  "- You may emphasize job keywords only when the underlying skill or experience is already supported.",
+  "- If a keyword is missing or unsupported, list it in `skippedKeywords` instead of adding it to the CV.",
+  "- Maximum 8 operations. Prefer summary and high-impact bullets over cosmetic changes.",
+  "",
+  "IMPORTANT — language: user-facing audit text (`summary`, `reason`, `skippedKeywords.reason`) MUST be written in French. The rewritten CV text itself MUST keep the language of the original CV text.",
+  "",
+  "Output: STRICT JSON, no prose, no markdown fences, no commentary.",
+  "Schema:",
+  JSON.stringify(
+    {
+      summary: "string — concise French summary of what the plan safely changes",
+      operations: [
+        {
+          id: "short stable string, e.g. op1",
+          targetKind: "'summary' | 'experience' | 'project' | 'skill' | 'other'",
+          originalText: "string — exact text copied from a resume fact",
+          rewrittenText: "string — compact rewrite, same language as originalText",
+          reason: "string — why this safe change improves fit, in French",
+          sourceFactIds: ["fact id(s) proving the rewritten text"],
+          matchedKeywords: ["job keyword(s) safely reflected by this rewrite"],
+        },
+      ],
+      skippedKeywords: [
+        {
+          term: "string — unsupported or unsafe keyword from the offer",
+          reason: "string — why it was not added, in French",
+        },
+      ],
+    },
+    null,
+    2
+  ),
+].join("\n");
+
 // ──────────────────────────────────────────────────────────────────────────────
 // USER MESSAGE BUILDERS
 // ──────────────────────────────────────────────────────────────────────────────
@@ -186,6 +238,27 @@ export function buildScoreUserPayload(params: {
       task: "score_compatibility",
       jobText: params.jobText,
       jobAnalysis: params.jobAnalysis,
+      resumeFacts: compactFacts(params.resumeFacts),
+      clarificationAnswers: params.answers,
+    },
+    null,
+    2
+  );
+}
+
+export function buildTailorResumeUserPayload(params: {
+  jobText: string;
+  resumeFacts: ResumeFact[];
+  jobAnalysis: JobAnalysis;
+  compatibilityReport: CompatibilityReport;
+  answers: Array<{ id: string; question: string; answer: string }>;
+}): string {
+  return JSON.stringify(
+    {
+      task: "tailor_resume_rewrite_plan",
+      jobText: params.jobText,
+      jobAnalysis: params.jobAnalysis,
+      compatibilityReport: params.compatibilityReport,
       resumeFacts: compactFacts(params.resumeFacts),
       clarificationAnswers: params.answers,
     },
