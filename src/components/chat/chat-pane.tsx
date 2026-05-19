@@ -556,7 +556,19 @@ function Welcome({
             : t("chat.providerNotDetected", { provider: providerLabel })}
         </div>
         <h1 className="m-0 mb-3.5 font-[family-name:var(--font-display)] text-[40px] leading-[1.05] font-medium tracking-[-0.03em] text-balance text-[var(--ink)]">
-          {t("chat.welcomeTitle")}
+          {(() => {
+            const title = t("chat.welcomeTitle");
+            const accent = t("chat.welcomeTitleAccent");
+            const idx = title.indexOf(accent);
+            if (idx === -1) return title;
+            return (
+              <>
+                {title.slice(0, idx)}
+                <em className="italic text-violet-600">{accent}</em>
+                {title.slice(idx + accent.length)}
+              </>
+            );
+          })()}
         </h1>
         <p className="mt-0 mb-[24px] max-w-[540px] text-[15.5px] leading-[1.55] text-pretty text-[var(--ink-3)]">
           {t("chat.welcomeLede")}
