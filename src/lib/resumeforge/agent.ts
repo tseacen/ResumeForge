@@ -14,6 +14,7 @@ import {
 import { type TailoredResume } from "@/lib/schemas/tailoring.schema";
 
 const USER_BUBBLE_TRUNCATE_AT = 520;
+const MAX_REVISION_INSTRUCTIONS = 12;
 
 function isoNow(): string {
   return new Date().toISOString();
@@ -39,12 +40,7 @@ export function toneFor(value: number): ScoreTableRow["tone"] {
 export function initializeSession(jobText: string, locale: AppLocale = "en"): AdaptationSession {
   const t = createTranslator(locale);
   const now = isoNow();
-  const userMessage: ChatMessage = {
-    kind: "user",
-    id: `user-${nanoid(6)}`,
-    body: jobText,
-    truncated: jobText.length > USER_BUBBLE_TRUNCATE_AT,
-  };
+  const userMessage = userChatMessage(jobText);
   return {
     id: nanoid(12),
     title: t("agent.analyzing"),
@@ -53,10 +49,49 @@ export function initializeSession(jobText: string, locale: AppLocale = "en"): Ad
     phase: "chat-analyzing",
     jobText,
     clarifications: [],
+    revisionInstructions: [],
     messages: [
       userMessage,
       { kind: "thinking", id: `thinking-${nanoid(6)}`, label: t("agent.readingJobOffer") },
     ],
+  };
+}
+
+function userChatMessage(body: string): Extract<ChatMessage, { kind: "user" }> {
+  return {
+    kind: "user",
+    id: `user-${nanoid(6)}`,
+    body,
+    truncated: body.length > USER_BUBBLE_TRUNCATE_AT,
+  };
+}
+
+export function addSessionUserInstruction(
+  session: AdaptationSession,
+  instruction: string
+): AdaptationSession {
+  const normalized = instruction.trim();
+  if (!normalized) return session;
+
+  return {
+    ...session,
+    revisionInstructions: [...session.revisionInstructions, normalized].slice(
+      -MAX_REVISION_INSTRUCTIONS
+    ),
+    updatedAt: isoNow(),
+    messages: [...session.messages, userChatMessage(normalized)],
+  };
+}
+
+export function addSessionAssistantMessage(
+  session: AdaptationSession,
+  body: string[]
+): AdaptationSession {
+  if (body.length === 0) return session;
+  return {
+    ...session,
+    updatedAt: isoNow(),
+    messages: [...session.messages, { kind: "assistant", id: `assistant-${nanoid(6)}`, body }],
   };
 }
 

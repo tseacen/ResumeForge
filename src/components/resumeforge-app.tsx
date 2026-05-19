@@ -13,6 +13,8 @@ import { adaptResume, analyzeJob, checkCli, scoreCompatibility } from "@/lib/llm
 import { fetchModelsForProvider } from "@/lib/llm/models-client";
 import { devError, devLog, devTimer } from "@/lib/logger";
 import {
+  addSessionAssistantMessage,
+  addSessionUserInstruction,
   allClarificationsAnswered,
   answerClarification,
   applyJobAnalysis,
@@ -342,6 +344,7 @@ export function ResumeForgeApp() {
   // Thinking animation : tourne sur des labels prédéfinis pendant l'attente
   // ──────────────────────────────────────────────────────────────────────────
   const thinkingTimerRef = useRef<number | null>(null);
+  const pendingRevisionRunRef = useRef(false);
 
   function startThinkingRotation(
     sessionId: string,
@@ -572,9 +575,16 @@ export function ResumeForgeApp() {
   // ──────────────────────────────────────────────────────────────────────────
   // Étape 3 : génération du CV adapté, appliquée localement au HTML original
   // ──────────────────────────────────────────────────────────────────────────
-  async function runAdaptation(sessionForAdaptation: AdaptationSession) {
+  async function runAdaptation(
+    sessionForAdaptation: AdaptationSession,
+    options?: { resumeHtml?: string; refinement?: boolean }
+  ) {
     const compatibilityReport = compatibilityReportFromSession(sessionForAdaptation);
-    if (!state.masterResumeHtml || !compatibilityReport) return;
+    const resumeHtml = options?.resumeHtml ?? state.masterResumeHtml;
+    if (!resumeHtml || !compatibilityReport) return;
+    const thinkingPhase: AdaptationSession["phase"] = options?.refinement
+      ? "chat-adapted"
+      : "chat-scored";
 
     setIsBusy(true);
     const endTimer = devTimer("app", "adapt-cv");
@@ -582,20 +592,22 @@ export function ResumeForgeApp() {
     const adaptingSession = setSessionThinking(
       clearTransientMessages(sessionForAdaptation),
       adaptThinkingPhases[0],
-      "chat-scored"
+      thinkingPhase
     );
     latestSessionRef.current = adaptingSession;
     dispatch({ type: "session/replace", session: adaptingSession });
 
-    startThinkingRotation(adaptingSession.id, adaptThinkingPhases, 1800, "chat-scored");
+    startThinkingRotation(adaptingSession.id, adaptThinkingPhases, 1800, thinkingPhase);
 
     try {
       const tailoredResume = await adaptResume({
-        resumeHtml: state.masterResumeHtml,
+        resumeHtml,
         jobText: adaptingSession.jobText,
         jobAnalysis: jobAnalysisFromSession(adaptingSession),
         compatibilityReport,
         answers: answersFromSession(adaptingSession),
+        revisionInstructions: adaptingSession.revisionInstructions,
+        previousAudit: adaptingSession.tailoredResume?.audit ?? [],
         provider: state.settings.selectedProvider,
         model: state.settings.selectedModels?.[state.settings.selectedProvider],
         language: state.settings.language,
@@ -624,6 +636,21 @@ export function ResumeForgeApp() {
     } finally {
       endTimer();
       setIsBusy(false);
+      if (pendingRevisionRunRef.current) {
+        pendingRevisionRunRef.current = false;
+        const fresh = latestSessionRef.current;
+        const resumeHtmlForRevision = fresh?.tailoredResume?.adaptedHtml ?? state.masterResumeHtml;
+        if (
+          fresh &&
+          fresh.phase === "chat-adapted" &&
+          fresh.scoreTable &&
+          resumeHtmlForRevision
+        ) {
+          window.setTimeout(() => {
+            void runAdaptation(fresh, { resumeHtml: resumeHtmlForRevision, refinement: true });
+          }, 0);
+        }
+      }
     }
   }
 
@@ -632,6 +659,47 @@ export function ResumeForgeApp() {
     const current = latestSessionRef.current;
     if (!current || !current.scoreTable) return;
     void runAdaptation(current);
+  }
+
+  function handleSubmitSessionMessage(message: string) {
+    const current = latestSessionRef.current;
+    if (!current) return;
+    if (current.phase === "chat-adapted") {
+      handleSubmitRevision(message);
+      return;
+    }
+
+    const updated = addSessionUserInstruction(current, message);
+    const ackBody =
+      current.phase === "chat-clarifying"
+        ? [t("agent.noteCapturedDuringClarifications")]
+        : current.phase === "chat-scored"
+          ? [t("agent.noteCapturedBeforeAdaptation")]
+          : [t("agent.noteCapturedDuringProcessing")];
+    const withAck = addSessionAssistantMessage(updated, ackBody);
+    latestSessionRef.current = withAck;
+    dispatch({ type: "session/replace", session: withAck });
+  }
+
+  function handleSubmitRevision(instruction: string) {
+    const current = latestSessionRef.current;
+    if (!current || current.phase !== "chat-adapted" || !current.scoreTable) return;
+
+    const queued = addSessionUserInstruction(current, instruction);
+    if (isBusy) {
+      pendingRevisionRunRef.current = true;
+      const withAck = addSessionAssistantMessage(queued, [t("agent.revisionQueuedAfterCurrentRun")]);
+      latestSessionRef.current = withAck;
+      dispatch({ type: "session/replace", session: withAck });
+      return;
+    }
+
+    latestSessionRef.current = queued;
+    dispatch({ type: "session/replace", session: queued });
+
+    const resumeHtmlForRevision = current.tailoredResume?.adaptedHtml ?? state.masterResumeHtml;
+    if (!resumeHtmlForRevision) return;
+    void runAdaptation(queued, { resumeHtml: resumeHtmlForRevision, refinement: true });
   }
 
   function handleRetry() {
@@ -653,6 +721,13 @@ export function ResumeForgeApp() {
 
     if (current.phase === "chat-scored" && current.scoreTable) {
       void runAdaptation(current);
+      return;
+    }
+
+    if (current.phase === "chat-adapted" && current.scoreTable) {
+      const resumeHtmlForRevision = current.tailoredResume?.adaptedHtml ?? state.masterResumeHtml;
+      if (!resumeHtmlForRevision) return;
+      void runAdaptation(current, { resumeHtml: resumeHtmlForRevision, refinement: true });
       return;
     }
 
@@ -720,6 +795,8 @@ export function ResumeForgeApp() {
                   )}
                   isBusy={isBusy}
                   onSubmitJob={handleSubmitJob}
+                  onSubmitSessionMessage={handleSubmitSessionMessage}
+                  onSubmitRevision={handleSubmitRevision}
                   onAnswerQuestion={handleAnswerClarification}
                   onAdaptCv={handleAdaptCv}
                   onRetry={handleRetry}

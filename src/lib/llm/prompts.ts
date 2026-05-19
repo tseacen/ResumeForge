@@ -4,6 +4,7 @@ import { type AppLocale } from "@/lib/i18n";
 import { type ResumeFact } from "@/lib/schemas/resume.schema";
 import {
   TailoringPlanSchema,
+  type TailoringAuditItem,
   type TailoringPlan,
 } from "@/lib/schemas/tailoring.schema";
 
@@ -53,6 +54,10 @@ export const CompatibilityReportSchema = z.object({
 export type CompatibilityReport = z.infer<typeof CompatibilityReportSchema>;
 
 export { TailoringPlanSchema, type TailoringPlan };
+export type TailoringAuditContextItem = Pick<
+  TailoringAuditItem,
+  "id" | "status" | "targetKind" | "originalText" | "rewrittenText" | "reason"
+>;
 
 export const ANALYZE_JOB_SYSTEM = [
   "You are a senior recruiting analyst. You receive (1) a raw job offer and (2) facts extracted from the candidate's master resume.",
@@ -143,6 +148,7 @@ export const SCORE_SYSTEM = [
 export const TAILOR_RESUME_SYSTEM = [
   "You are a meticulous CV editor. You receive a raw job offer, a compatibility report, facts extracted from the candidate's master resume, and optional user-validated clarification answers.",
   "Your mission: propose a SMALL rewrite plan that adapts the existing CV to the role without recreating the CV.",
+  "If `revisionInstructions` is not empty, these are direct user requests on the latest draft (e.g. revert, keep, add, remove). Prioritize them while preserving factual safety.",
   "",
   "Critical safety rules:",
   "- NEVER invent resume facts.",
@@ -154,6 +160,9 @@ export const TAILOR_RESUME_SYSTEM = [
   "- Rewrites should be compact: ideally same length as the original, never bloated.",
   "- You may emphasize job keywords only when the underlying skill or experience is already supported.",
   "- If a keyword is missing or unsupported, list it in `skippedKeywords` instead of adding it to the CV.",
+  "- Respect negative constraints from `revisionInstructions` (e.g. 'do not change X').",
+  "- If the user asks to revert a change, use `previousAudit` to restore the previous wording when possible.",
+  "- If the user explicitly validates a claim in `revisionInstructions`, you may use it but keep the rewrite minimal and traceable.",
   "- Maximum 8 operations. Prefer summary and high-impact bullets over cosmetic changes.",
   "",
   "IMPORTANT — language: audit text (`summary`, `reason`, `skippedKeywords.reason`) must be written in the `outputLanguage` requested in the user payload. Rewritten CV text must keep the language of the original CV.",
@@ -191,6 +200,17 @@ function compactFacts(facts: ResumeFact[]): Array<{ id: string; category: string
     id: f.id,
     category: f.category,
     text: f.text,
+  }));
+}
+
+function compactAudit(items: TailoringAuditContextItem[]): TailoringAuditContextItem[] {
+  return items.slice(-24).map((item) => ({
+    id: item.id,
+    status: item.status,
+    targetKind: item.targetKind,
+    originalText: item.originalText,
+    rewrittenText: item.rewrittenText,
+    reason: item.reason,
   }));
 }
 
@@ -242,6 +262,8 @@ export function buildTailorResumeUserPayload(params: {
   jobAnalysis: JobAnalysis;
   compatibilityReport: CompatibilityReport;
   answers: Array<{ id: string; question: string; answer: string }>;
+  revisionInstructions?: string[];
+  previousAudit?: TailoringAuditContextItem[];
   language: AppLocale;
 }): string {
   return JSON.stringify(
@@ -253,6 +275,8 @@ export function buildTailorResumeUserPayload(params: {
       compatibilityReport: params.compatibilityReport,
       resumeFacts: compactFacts(params.resumeFacts),
       clarificationAnswers: params.answers,
+      revisionInstructions: params.revisionInstructions ?? [],
+      previousAudit: compactAudit(params.previousAudit ?? []),
     },
     null,
     2

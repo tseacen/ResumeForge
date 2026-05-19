@@ -14,6 +14,7 @@ import {
   SCORE_SYSTEM,
   TAILOR_RESUME_SYSTEM,
   TailoringPlanSchema,
+  type TailoringAuditContextItem,
   type CompatibilityReport,
   type JobAnalysis,
 } from "./prompts";
@@ -87,6 +88,8 @@ export interface RunTailorResumeParams {
   jobAnalysis: JobAnalysis;
   compatibilityReport: CompatibilityReport;
   answers: Array<{ id: string; question: string; answer: string }>;
+  revisionInstructions?: string[];
+  previousAudit?: TailoringAuditContextItem[];
   language: AppLocale;
 }
 
@@ -106,6 +109,8 @@ export async function runTailorResume(
           jobAnalysis: params.jobAnalysis,
           compatibilityReport: params.compatibilityReport,
           answers: params.answers,
+          revisionInstructions: params.revisionInstructions,
+          previousAudit: params.previousAudit,
           language: params.language,
         }),
       },
@@ -115,9 +120,18 @@ export async function runTailorResume(
   });
 
   const plan = parseLlmJson(result.content, TailoringPlanSchema);
+  const safetyAnswers = [
+    ...params.answers,
+    ...(params.revisionInstructions ?? []).map((instruction, index) => ({
+      id: `revision-${index + 1}`,
+      question: "User revision instruction",
+      answer: instruction,
+    })),
+  ];
+
   return applyTailoringPlan({
     originalHtml: params.resumeHtml,
     plan,
-    answers: params.answers,
+    answers: safetyAnswers,
   });
 }

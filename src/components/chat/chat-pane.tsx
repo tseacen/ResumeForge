@@ -34,6 +34,8 @@ interface ChatPaneProps {
   providerLabel: string;
   isBusy: boolean;
   onSubmitJob: (jobText: string) => void;
+  onSubmitSessionMessage: (message: string) => void;
+  onSubmitRevision: (instruction: string) => void;
   onAnswerQuestion: (questionId: string, answer: string) => void;
   onAdaptCv: () => void;
   onRetry: () => void;
@@ -601,11 +603,15 @@ function Welcome({
 function Composer({
   t,
   disabled,
-  onSubmitJob,
+  minLength,
+  placeholder,
+  onSubmit,
 }: {
   t: Translator;
   disabled?: boolean;
-  onSubmitJob: (jobText: string) => void;
+  minLength: number;
+  placeholder: string;
+  onSubmit: (text: string) => void;
 }) {
   const [value, setValue] = useState("");
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -618,8 +624,9 @@ function Composer({
   }, [value]);
 
   function submit() {
-    if (value.trim().length < 20) return;
-    onSubmitJob(value);
+    const normalized = value.trim();
+    if (normalized.length < minLength) return;
+    onSubmit(normalized);
     setValue("");
   }
 
@@ -633,7 +640,7 @@ function Composer({
           disabled={disabled}
           rows={1}
           onChange={(event) => setValue(event.target.value)}
-          placeholder={t("chat.pasteJobOffer")}
+          placeholder={placeholder}
           onKeyDown={(event) => {
             if (event.key === "Enter" && !event.shiftKey) {
               event.preventDefault();
@@ -661,7 +668,7 @@ function Composer({
           <button
             type="button"
             className="grid h-8 w-8 place-items-center rounded-lg bg-[var(--accent)] text-white shadow-[var(--shadow-cta)] hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:bg-[var(--line-2)] disabled:shadow-none"
-            disabled={disabled || value.trim().length < 20}
+            disabled={disabled || value.trim().length < minLength}
             onClick={submit}
           >
             <ArrowUp size={14} />
@@ -723,6 +730,8 @@ export function ChatPane({
   providerLabel,
   isBusy,
   onSubmitJob,
+  onSubmitSessionMessage,
+  onSubmitRevision,
   onAnswerQuestion,
   onAdaptCv,
   onRetry,
@@ -749,12 +758,33 @@ export function ChatPane({
             t={t}
           />
         </div>
-        <Composer t={t} disabled={!masterResumeReady || !providerReady} onSubmitJob={onSubmitJob} />
+        <Composer
+          t={t}
+          disabled={!masterResumeReady || !providerReady}
+          minLength={20}
+          placeholder={t("chat.pasteJobOffer")}
+          onSubmit={onSubmitJob}
+        />
       </section>
     );
   }
 
   const showAdaptButton = session.phase === "chat-scored" && !isBusy;
+  const composerMode =
+    session.phase === "chat-adapted"
+      ? "revision"
+      : session.phase === "chat-clarifying" || session.phase === "chat-scored"
+        ? "context"
+        : "processing";
+  const composerPlaceholder =
+    composerMode === "revision"
+      ? t("chat.revisionPlaceholder")
+      : composerMode === "context"
+        ? t("chat.contextPlaceholder")
+        : t("chat.processingPlaceholder");
+  const composerSubmit =
+    composerMode === "revision" ? onSubmitRevision : onSubmitSessionMessage;
+  const composerDisabled = false;
 
   return (
     <section className="flex min-h-0 min-w-0 flex-col border-r border-[var(--line)] bg-[var(--bg)]">
@@ -778,7 +808,13 @@ export function ChatPane({
           )}
         </div>
       </div>
-      <Composer t={t} disabled={isBusy} onSubmitJob={onSubmitJob} />
+      <Composer
+        t={t}
+        disabled={composerDisabled}
+        minLength={3}
+        placeholder={composerPlaceholder}
+        onSubmit={composerSubmit}
+      />
     </section>
   );
 }

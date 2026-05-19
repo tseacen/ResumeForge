@@ -75,6 +75,9 @@ const en = {
   "chat.urlImportSoon": "URL import — soon",
   "chat.sessionSoon": "Resume session — soon",
   "chat.pasteJobOffer": "Paste the job offer…",
+  "chat.revisionPlaceholder": "Ask for a CV change (revert, keep, add…).",
+  "chat.contextPlaceholder": "Add context or constraints for this adaptation…",
+  "chat.processingPlaceholder": "Message received while processing…",
   "chat.attach": "Attach",
   "chat.dictate": "Dictate",
   "chat.readyToAdaptTitle": "Ready to adapt?",
@@ -169,6 +172,14 @@ const en = {
   "agent.suggestionsBlocked":
     "{count} suggestion{plural} blocked to prevent unproven claims or broken layout.",
   "agent.noSuggestionsBlocked": "No suggestions blocked — the audit is clean.",
+  "agent.noteCapturedDuringClarifications":
+    "Noted. I keep this context while we finish the clarification step.",
+  "agent.noteCapturedBeforeAdaptation":
+    "Noted. I will use this in the next CV adaptation.",
+  "agent.noteCapturedDuringProcessing":
+    "Noted. I keep this context for the next step without restarting the current one.",
+  "agent.revisionQueuedAfterCurrentRun":
+    "Noted. I will apply this request right after the current generation finishes.",
 } as const satisfies TranslationDictionary;
 
 export type TranslationKey = keyof typeof en;
@@ -244,6 +255,10 @@ const fr = {
   "chat.urlImportSoon": "Import URL — bientôt",
   "chat.sessionSoon": "Session CV — bientôt",
   "chat.pasteJobOffer": "Collez l’offre d’emploi…",
+  "chat.revisionPlaceholder":
+    "Demande une retouche du CV (revert, ne change pas, ajoute…).",
+  "chat.contextPlaceholder": "Ajoute un contexte ou une contrainte pour cette adaptation…",
+  "chat.processingPlaceholder": "Message reçu pendant le traitement…",
   "chat.attach": "Joindre",
   "chat.dictate": "Dicter",
   "chat.readyToAdaptTitle": "Prêt à adapter ?",
@@ -341,6 +356,14 @@ const fr = {
   "agent.suggestionsBlocked":
     "{count} suggestion{plural} bloquée{plural} pour éviter des affirmations non prouvées ou une mise en page cassée.",
   "agent.noSuggestionsBlocked": "Aucune suggestion bloquée : audit propre.",
+  "agent.noteCapturedDuringClarifications":
+    "Noté. Je garde ce contexte pendant qu’on termine les clarifications.",
+  "agent.noteCapturedBeforeAdaptation":
+    "Noté. J’utiliserai ça lors de la prochaine adaptation du CV.",
+  "agent.noteCapturedDuringProcessing":
+    "Noté. Je garde ce contexte pour la suite sans relancer l’étape en cours.",
+  "agent.revisionQueuedAfterCurrentRun":
+    "Noté. J’appliquerai cette demande juste après la génération en cours.",
 } as const satisfies Record<TranslationKey, string>;
 
 const dictionaries: Record<AppLocale, TranslationDictionary> = { en, fr };

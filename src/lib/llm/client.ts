@@ -33,6 +33,15 @@ export interface AdaptResumeInput {
   jobAnalysis: JobAnalysis;
   compatibilityReport: CompatibilityReport;
   answers: Array<{ id: string; question: string; answer: string }>;
+  revisionInstructions?: string[];
+  previousAudit?: Array<{
+    id: string;
+    status: "applied" | "blocked" | "skipped";
+    targetKind: "summary" | "experience" | "project" | "skill" | "other";
+    originalText: string;
+    rewrittenText: string;
+    reason: string;
+  }>;
 }
 
 async function readJsonOrThrow<T>(response: Response): Promise<T> {

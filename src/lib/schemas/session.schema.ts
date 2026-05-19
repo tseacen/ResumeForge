@@ -44,6 +44,7 @@ export const AdaptationSessionSchema = z.object({
   clarifications: z.array(ClarificationQuestionSchema).default([]),
   scoreTable: ScoreTableSchema.optional(),
   tailoredResume: TailoredResumeSchema.optional(),
+  revisionInstructions: z.array(z.string()).default([]),
   messages: z.array(ChatMessageSchema),
 });
 
