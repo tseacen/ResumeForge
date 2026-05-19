@@ -1,5 +1,7 @@
 const URL_TOKEN_REGEX = /(?:https?:\/\/|www\.)[^\s]+/gi;
 const MIN_MEANINGFUL_NON_URL_TOKENS = 5;
+const LEADING_URL_WRAPPER_RE = /^<+/;
+const TRAILING_URL_PUNCTUATION_RE = /[>\]),.;!?]+$/;
 
 export function extractUrls(text: string): string[] {
   return text.match(URL_TOKEN_REGEX) ?? [];
@@ -14,11 +16,13 @@ function meaningfulNonUrlTokenCount(text: string): number {
 }
 
 export function normalizeUrlToken(raw: string): string {
-  const trimmed = raw.trim();
-  if (trimmed.startsWith("www.")) {
-    return `https://${trimmed}`;
+  const trimmed = raw.trim().replace(LEADING_URL_WRAPPER_RE, "");
+  const withoutTrailingPunctuation = trimmed.replace(TRAILING_URL_PUNCTUATION_RE, "");
+  const normalized = withoutTrailingPunctuation.trim();
+  if (normalized.startsWith("www.")) {
+    return `https://${normalized}`;
   }
-  return trimmed;
+  return normalized;
 }
 
 export function extractJobOfferUrlCandidate(jobText: string): string | null {

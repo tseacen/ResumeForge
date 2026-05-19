@@ -156,11 +156,9 @@ const en = {
   "app.thinking.rewriting": "Rewriting without adding facts…",
   "app.thinking.validatingEvidence": "Validating CV evidence…",
   "app.thinking.applyingHtml": "Applying changes to original HTML…",
-  "app.thinking.importingJobUrl": "Importing job offer from URL…",
   "app.aiNoResponse": "The AI did not respond.",
   "app.jobOfferUrlImportFailed":
     "I couldn't import this URL. Paste the job offer text (title, responsibilities, stack, requirements), or try another direct job link.",
-  "app.jobOfferUrlInvalid": "No valid job-offer URL detected in your message.",
 
   "agent.newAdaptation": "New adaptation",
   "agent.analyzing": "Analyzing…",
@@ -184,8 +182,6 @@ const en = {
     "Noted. I keep this context for the next step without restarting the current one.",
   "agent.revisionQueuedAfterCurrentRun":
     "Noted. I will apply this request right after the current generation finishes.",
-  "agent.urlImportSuccess":
-    "Offer imported from **{sourceHost}**. Starting analysis on the extracted text.",
 } as const satisfies TranslationDictionary;
 
 export type TranslationKey = keyof typeof en;
@@ -344,11 +340,9 @@ const fr = {
   "app.thinking.rewriting": "Réécriture sans ajouter de faits…",
   "app.thinking.validatingEvidence": "Validation des preuves du CV…",
   "app.thinking.applyingHtml": "Application des changements au HTML d’origine…",
-  "app.thinking.importingJobUrl": "Import de l’offre depuis l’URL…",
   "app.aiNoResponse": "L’IA n’a pas répondu.",
   "app.jobOfferUrlImportFailed":
     "Je n’ai pas réussi à importer cette URL. Colle le texte de l’offre (titre, missions, stack, exigences) ou essaie un lien direct vers l’annonce.",
-  "app.jobOfferUrlInvalid": "Aucune URL d’offre valide détectée dans ton message.",
 
   "agent.newAdaptation": "Nouvelle adaptation",
   "agent.analyzing": "Analyse en cours…",
@@ -374,8 +368,6 @@ const fr = {
     "Noté. Je garde ce contexte pour la suite sans relancer l’étape en cours.",
   "agent.revisionQueuedAfterCurrentRun":
     "Noté. J’appliquerai cette demande juste après la génération en cours.",
-  "agent.urlImportSuccess":
-    "Offre importée depuis **{sourceHost}**. Je lance l’analyse sur le texte extrait.",
 } as const satisfies Record<TranslationKey, string>;
 
 const dictionaries: Record<AppLocale, TranslationDictionary> = { en, fr };

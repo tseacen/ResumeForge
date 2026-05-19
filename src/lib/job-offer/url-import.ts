@@ -16,6 +16,23 @@ const REQUEST_HEADERS = {
 
 const NOISE_LINE_RE =
   /^(sign in|join now|accept cookies|cookie policy|privacy policy|terms of use|jobs you may like|see more|show more)$/i;
+const COMPANY_SELECTORS = [
+  "[data-test-id='job-details-company-name']",
+  ".topcard__org-name-link",
+  ".jobs-unified-top-card__company-name",
+  '[class*="company"]',
+];
+const DESCRIPTION_SELECTORS = [
+  ".show-more-less-html__markup",
+  ".description__text",
+  ".jobs-description",
+  ".job-description",
+  "[data-job-description]",
+  "main article",
+  "main",
+  "article",
+  "[role='main']",
+];
 
 type ImportSource = "linkedin-guest-api" | "html";
 
@@ -39,6 +56,14 @@ export class JobOfferImportError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "JobOfferImportError";
+  }
+}
+
+function parseUrlOrThrow(rawUrl: string): URL {
+  try {
+    return new URL(rawUrl);
+  } catch {
+    throw new JobOfferImportError("Invalid URL.");
   }
 }
 
@@ -92,6 +117,15 @@ function cleanText(raw: string): string {
 function truncate(text: string, maxChars: number): string {
   if (text.length <= maxChars) return text;
   return `${text.slice(0, maxChars).trimEnd()}…`;
+}
+
+function joinTitleAndDescription(
+  title: string | null,
+  company: string | null,
+  description: string
+): string {
+  const preface = [title, company].filter((value): value is string => Boolean(value)).join(" — ");
+  return preface ? `${preface}\n\n${description}` : description;
 }
 
 function normalizeType(rawType: unknown): string[] {
@@ -150,12 +184,22 @@ function extractFromJsonLd($: cheerio.CheerioAPI): ExtractedJobContent | null {
       const description = cleanText(cheerio.load(`<div>${rawDescription}</div>`).text());
       if (description.length < MIN_JOB_TEXT_CHARS) continue;
 
-      const preface = [title, company].filter((value): value is string => Boolean(value)).join(" — ");
-      const text = preface ? `${preface}\n\n${description}` : description;
+      const text = joinTitleAndDescription(title, company, description);
       return { text: truncate(text, MAX_JOB_TEXT_CHARS), title, company };
     } catch {
       continue;
     }
+  }
+  return null;
+}
+
+function firstNonEmptyTextBySelectors(
+  $: cheerio.CheerioAPI,
+  selectors: string[]
+): string | null {
+  for (const selector of selectors) {
+    const text = cleanText($(selector).first().text());
+    if (text.length > 0) return text;
   }
   return null;
 }
@@ -183,34 +227,12 @@ export function extractJobOfferTextFromHtml(html: string): ExtractedJobContent {
   $("script,style,noscript,svg,header,footer,nav,form").remove();
 
   const title = cleanText($("h1").first().text()) || cleanText($("title").first().text()) || null;
-
-  const company = cleanText(
-    [
-      $("[data-test-id='job-details-company-name']").first().text(),
-      $(".topcard__org-name-link").first().text(),
-      $(".jobs-unified-top-card__company-name").first().text(),
-      $('[class*="company"]').first().text(),
-    ]
-      .filter((value) => value.trim().length > 0)
-      .join(" ")
-  ) || null;
-
-  const prioritized = longestTextBySelector($, [
-    ".show-more-less-html__markup",
-    ".description__text",
-    ".jobs-description",
-    ".job-description",
-    "[data-job-description]",
-    "main article",
-    "main",
-    "article",
-    "[role='main']",
-  ]);
+  const company = firstNonEmptyTextBySelectors($, COMPANY_SELECTORS);
+  const prioritized = longestTextBySelector($, DESCRIPTION_SELECTORS);
 
   const fallback = cleanText($("body").text());
   const description = prioritized.length >= MIN_JOB_TEXT_CHARS ? prioritized : fallback;
-  const preface = [title, company].filter((value): value is string => Boolean(value)).join(" — ");
-  const assembled = preface ? `${preface}\n\n${description}` : description;
+  const assembled = joinTitleAndDescription(title, company, description);
 
   return {
     text: truncate(assembled, MAX_JOB_TEXT_CHARS),
@@ -246,8 +268,26 @@ function assertMinimumTextLength(text: string): void {
   }
 }
 
+function toImportedJobOffer(
+  source: ImportSource,
+  sourceUrl: string,
+  resolvedUrl: string,
+  sourceHost: string,
+  extracted: ExtractedJobContent
+): ImportedJobOffer {
+  return {
+    source,
+    sourceUrl,
+    resolvedUrl,
+    sourceHost,
+    title: extracted.title,
+    company: extracted.company,
+    jobText: extracted.text,
+  };
+}
+
 export async function importJobOfferFromUrl(rawUrl: string): Promise<ImportedJobOffer> {
-  const parsed = new URL(rawUrl);
+  const parsed = parseUrlOrThrow(rawUrl);
   const normalizedUrl = parsed.toString();
   const sourceHost = parsed.hostname;
   const linkedinJobId = extractLinkedInJobIdFromUrl(normalizedUrl);
@@ -263,15 +303,13 @@ export async function importJobOfferFromUrl(rawUrl: string): Promise<ImportedJob
         jobId: linkedinJobId,
         chars: extracted.text.length,
       });
-      return {
-        source: "linkedin-guest-api",
-        sourceUrl: normalizedUrl,
-        resolvedUrl: guest.finalUrl,
+      return toImportedJobOffer(
+        "linkedin-guest-api",
+        normalizedUrl,
+        guest.finalUrl,
         sourceHost,
-        title: extracted.title,
-        company: extracted.company,
-        jobText: extracted.text,
-      };
+        extracted
+      );
     } catch (error) {
       devError("job-offer/import", "linkedin guest endpoint failed, falling back to page", {
         sourceHost,
@@ -288,13 +326,5 @@ export async function importJobOfferFromUrl(rawUrl: string): Promise<ImportedJob
     sourceHost,
     chars: extracted.text.length,
   });
-  return {
-    source: "html",
-    sourceUrl: normalizedUrl,
-    resolvedUrl: page.finalUrl,
-    sourceHost,
-    title: extracted.title,
-    company: extracted.company,
-    jobText: extracted.text,
-  };
+  return toImportedJobOffer("html", normalizedUrl, page.finalUrl, sourceHost, extracted);
 }

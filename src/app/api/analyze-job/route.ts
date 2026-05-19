@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { translate } from "@/lib/i18n";
 import { extractJobOfferUrlCandidate } from "@/lib/job-offer/input-validation";
-import { importJobOfferFromUrl, JobOfferImportError } from "@/lib/job-offer/url-import";
+import { importJobOfferFromUrl } from "@/lib/job-offer/url-import";
 import { isResolutionError, resolveProvider } from "@/lib/llm/resolve-provider";
 import { runAnalyzeJob } from "@/lib/llm/runner";
 import { devError, devLog, devTimer } from "@/lib/logger";
@@ -52,10 +52,7 @@ export async function POST(request: Request) {
     } catch (err) {
       const details = err instanceof Error ? err.message : String(err);
       const message = `${translate(body.language, "app.jobOfferUrlImportFailed")} (${details})`;
-      devError("api/analyze-job", "job URL import failed", {
-        error: details,
-        type: err instanceof JobOfferImportError ? "import" : "unknown",
-      });
+      devError("api/analyze-job", "job URL import failed", { error: details });
       endTimer();
       return NextResponse.json(
         { error: "url_import_failed", message },

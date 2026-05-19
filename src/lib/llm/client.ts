@@ -14,21 +14,6 @@ export interface AnalyzeJobInput {
   language?: AppLocale;
 }
 
-export interface ImportJobOfferFromUrlInput {
-  rawInput: string;
-  language?: AppLocale;
-}
-
-export interface ImportJobOfferFromUrlResult {
-  source: "linkedin-guest-api" | "html";
-  sourceUrl: string;
-  resolvedUrl: string;
-  sourceHost: string;
-  title: string | null;
-  company: string | null;
-  jobText: string;
-}
-
 export interface ScoreInput {
   resumeHtml: string;
   jobText: string;
@@ -97,18 +82,6 @@ export async function analyzeJob(input: AnalyzeJobInput): Promise<JobAnalysis> {
   });
   const data = await readJsonOrThrow<{ analysis: JobAnalysis }>(res);
   return data.analysis;
-}
-
-export async function importJobOfferFromUrl(
-  input: ImportJobOfferFromUrlInput
-): Promise<ImportJobOfferFromUrlResult> {
-  const res = await fetch("/api/import-job-offer-url", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
-  });
-  const data = await readJsonOrThrow<{ imported: ImportJobOfferFromUrlResult }>(res);
-  return data.imported;
 }
 
 export async function scoreCompatibility(input: ScoreInput): Promise<CompatibilityReport> {

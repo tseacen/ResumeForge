@@ -40,4 +40,10 @@ describe("job offer URL candidate detection", () => {
       "https://www.example.com/job/42"
     );
   });
+
+  it("strips trailing punctuation around pasted URLs", () => {
+    expect(normalizeUrlToken("<https://example.com/job/42>,")).toBe(
+      "https://example.com/job/42"
+    );
+  });
 });
