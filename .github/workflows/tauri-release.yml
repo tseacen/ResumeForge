@@ -83,7 +83,7 @@ jobs:
         with:
           tauriScript: pnpm tauri
           tagName: ${{ github.ref_name }}
-          releaseName: "ResumeForge ${{ github.ref_name }}"
+          releaseName: ${{ github.ref_name }}
           releaseBody: |
             ## Installation
 
