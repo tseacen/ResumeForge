@@ -51,10 +51,15 @@ export function Sidebar({
 
   return (
     <aside className="sticky top-0 flex h-screen flex-col overflow-hidden border-r border-[var(--line)] bg-[var(--bg-2)] max-[980px]:hidden">
-      <div className="flex items-center gap-2.5 px-4 pt-[18px] pb-3">
+      <div className="flex items-center gap-2 px-4 pt-[18px] pb-3">
         <div className="font-[family-name:var(--font-display)] text-[17px] font-medium tracking-[-0.015em] text-[var(--ink)]">
           Resume<em className="font-medium text-[var(--accent)] italic">Forge</em>
         </div>
+        {process.env.NEXT_PUBLIC_APP_VERSION && (
+          <span className="font-[family-name:var(--font-mono)] text-[10px] text-[var(--muted)] mt-[3px]">
+            v{process.env.NEXT_PUBLIC_APP_VERSION}
+          </span>
+        )}
       </div>
 
       <button
