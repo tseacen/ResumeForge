@@ -21,7 +21,7 @@ function isoNow(): string {
 export function sessionTitle(jobTitle?: string | null, company?: string | null): string {
   if (jobTitle && company) return `${jobTitle} — ${company}`;
   if (jobTitle) return jobTitle;
-  return "Nouvelle adaptation";
+  return "New adaptation";
 }
 
 export function toneFor(value: number): ScoreTableRow["tone"] {
@@ -40,7 +40,7 @@ export function initializeSession(jobText: string): AdaptationSession {
   };
   return {
     id: nanoid(12),
-    title: "Analyse en cours…",
+    title: "Analyzing…",
     createdAt: now,
     updatedAt: now,
     phase: "chat-analyzing",
@@ -48,7 +48,7 @@ export function initializeSession(jobText: string): AdaptationSession {
     clarifications: [],
     messages: [
       userMessage,
-      { kind: "thinking", id: `thinking-${nanoid(6)}`, label: "Lecture de l'offre…" },
+      { kind: "thinking", id: `thinking-${nanoid(6)}`, label: "Reading job offer…" },
     ],
   };
 }
@@ -74,13 +74,13 @@ export function applyJobAnalysis(
       kind: "assistant",
       id: `assistant-summary-${nanoid(6)}`,
       body: [
-        `Poste détecté : **${analysis.jobTitle}**${
+        `Position detected: **${analysis.jobTitle}**${
           analysis.company ? ` — ${analysis.company}` : ""
         }.`,
         analysis.summary,
         hasQuestions
-          ? "Avant de scorer la compatibilité, j'aurais besoin de quelques précisions :"
-          : "Aucune ambiguïté détectée. Je passe directement au tableau de compatibilité.",
+          ? "Before scoring compatibility, I need a few clarifications:"
+          : "No ambiguity detected. Moving directly to the compatibility table.",
       ],
     },
   ];
@@ -220,15 +220,11 @@ export function applyTailoredResume(
       id: `assistant-adapted-${nanoid(6)}`,
       body: [
         applied > 0
-          ? `${applied} modification${applied > 1 ? "s" : ""} sûre${
-              applied > 1 ? "s" : ""
-            } appliquée${applied > 1 ? "s" : ""} au CV adapté.`
-          : "Aucune modification n'a été appliquée, car rien n'était assez sûr à changer.",
+          ? `${applied} safe change${applied > 1 ? "s" : ""} applied to the adapted CV.`
+          : "No changes were applied — nothing was safe enough to modify.",
         blocked > 0
-          ? `${blocked} proposition${blocked > 1 ? "s" : ""} bloquée${
-              blocked > 1 ? "s" : ""
-            } pour éviter d'ajouter une information non prouvée ou de casser le rendu.`
-          : "Aucune proposition bloquée : l'audit est propre.",
+          ? `${blocked} suggestion${blocked > 1 ? "s" : ""} blocked to prevent unproven claims or broken layout.`
+          : "No suggestions blocked — the audit is clean.",
       ],
     },
   ];

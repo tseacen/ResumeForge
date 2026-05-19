@@ -179,47 +179,47 @@ function validationNotesForOperation(params: {
     .filter((fact): fact is ResumeFact => Boolean(fact));
 
   if (sourceFacts.length !== operation.sourceFactIds.length) {
-    notes.push("Certaines preuves source demandées par l'IA n'existent pas dans le CV parsé.");
+    notes.push("Some source facts referenced by the AI do not exist in the parsed CV.");
   }
 
   if (!sourceFacts.some((fact) => ALLOWED_SUPPORT_CATEGORIES.has(fact.category))) {
-    notes.push("La modification ne s'appuie pas sur une preuve modifiable du CV.");
+    notes.push("The change is not backed by a modifiable fact from the CV.");
   }
 
   if (operation.targetKind === "other") {
-    notes.push("La cible est trop vague pour appliquer la modification sans risque.");
+    notes.push("Target section is too vague to apply the change safely.");
   }
 
   const originalText = normalizeSpaces(operation.originalText);
   const rewrittenText = normalizeSpaces(operation.rewrittenText);
   if (originalText === rewrittenText) {
-    notes.push("Aucun changement utile détecté.");
+    notes.push("No meaningful change detected.");
   }
 
   if (
     rewrittenText.length > originalText.length * MAX_REWRITE_RATIO &&
     rewrittenText.length - originalText.length > MAX_REWRITE_EXTRA_CHARS
   ) {
-    notes.push("La réécriture est trop longue et risquerait de casser les proportions du CV.");
+    notes.push("Rewrite is too long and could break CV layout proportions.");
   }
 
   const unsupportedTokens = [...claimTokens(rewrittenText)].filter(
     (token) => !supportTokens.has(token)
   );
   if (unsupportedTokens.length > 0) {
-    notes.push(`Termes non prouvés bloqués : ${unsupportedTokens.slice(0, 8).join(", ")}.`);
+    notes.push(`Unsupported terms blocked: ${unsupportedTokens.slice(0, 8).join(", ")}.`);
   }
 
   const newMetrics = [...metricTokens(rewrittenText)].filter((metric) => !supportMetrics.has(metric));
   if (newMetrics.length > 0) {
-    notes.push(`Métriques non prouvées bloquées : ${newMetrics.slice(0, 5).join(", ")}.`);
+    notes.push(`Unsupported metrics blocked: ${newMetrics.slice(0, 5).join(", ")}.`);
   }
 
   const unsupportedSeniority = [...claimTokens(rewrittenText)].filter(
     (token) => SENIORITY_TERMS.has(token) && !claimTokens(originalText).has(token)
   );
   if (unsupportedSeniority.length > 0) {
-    notes.push(`Signal de séniorité non prouvé : ${unsupportedSeniority.join(", ")}.`);
+    notes.push(`Unsupported seniority signal: ${unsupportedSeniority.join(", ")}.`);
   }
 
   return notes;
@@ -301,7 +301,7 @@ export function applyTailoringPlan(params: {
     if (!element) {
       audit.push(
         addAudit(operation, "blocked", [
-          "Le texte original exact n'a pas été retrouvé dans le HTML du CV.",
+          "Original text was not found in the CV HTML.",
         ])
       );
       continue;
@@ -309,7 +309,7 @@ export function applyTailoringPlan(params: {
 
     markElement($, element, operation);
     usedChangeIds.add(operation.id);
-    audit.push(addAudit(operation, "applied", ["Modification appliquée sur le HTML original."]));
+    audit.push(addAudit(operation, "applied", ["Change applied to the original HTML."]));
   }
 
   return {

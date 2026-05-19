@@ -41,7 +41,7 @@ const initialState: ResumeForgeState = {
   settings: {
     selectedProvider: "claude-code",
     onboardingCompleted: false,
-    language: "fr",
+    language: "en",
     selectedModels: {},
   },
   masterResumeHtml: null,
@@ -54,24 +54,24 @@ const initialState: ResumeForgeState = {
 };
 
 const ANALYZE_THINKING_PHASES = [
-  "Lecture de l'offre…",
-  "Repérage des compétences attendues…",
-  "Comparaison avec votre CV…",
-  "Détection des points à clarifier…",
+  "Reading job offer…",
+  "Identifying expected skills…",
+  "Comparing with your CV…",
+  "Detecting points to clarify…",
 ];
 
 const SCORE_THINKING_PHASES = [
-  "Pondération des axes de compatibilité…",
-  "Analyse des forces et écarts…",
-  "Identification des risques d'entretien…",
-  "Rédaction du verdict…",
+  "Weighting compatibility dimensions…",
+  "Analyzing strengths and gaps…",
+  "Identifying interview risks…",
+  "Writing verdict…",
 ];
 
 const ADAPT_THINKING_PHASES = [
-  "Sélection des lignes modifiables…",
-  "Réécriture sans ajout de faits…",
-  "Validation des preuves du CV…",
-  "Application sur le HTML original…",
+  "Selecting modifiable lines…",
+  "Rewriting without adding facts…",
+  "Validating CV evidence…",
+  "Applying changes to original HTML…",
 ];
 
 type Action =

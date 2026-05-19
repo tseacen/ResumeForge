@@ -70,7 +70,7 @@ const providerMeta: Array<{
       icon: BsAnthropic,
       name: "Claude Code",
       sub: "Anthropic · CLI",
-      desc: "Précis, prudent, excellent pour raisonner sur le contexte avant de réécrire.",
+      desc: "Precise, careful, excellent at reasoning about context before rewriting.",
       install: "npm install -g @anthropic/claude-code",
       keyPlaceholder: "sk-ant-api03-…",
     },
@@ -79,7 +79,7 @@ const providerMeta: Array<{
       icon: BsOpenai,
       name: "OpenAI Codex",
       sub: "OpenAI · CLI",
-      desc: "Rapide et créatif pour itérer plusieurs variantes de formulation.",
+      desc: "Fast and creative for iterating on multiple phrasing variants.",
       install: "npm install -g @openai/codex",
       keyPlaceholder: "sk-proj-…",
     },
@@ -88,14 +88,14 @@ const providerMeta: Array<{
       icon: SiGooglegemini,
       name: "Gemini CLI",
       sub: "Google · CLI",
-      desc: "Contexte long et multimodal, bon pour parcourir un CV dense.",
+      desc: "Long context and multimodal, great for processing dense resumes.",
       install: "npm install -g @google/gemini-cli",
       keyPlaceholder: "AIza…",
     },
   ];
 
 function StepRail({ current }: { current: 1 | 2 | 3 }) {
-  const steps = ["Configurer l'IA", "Ajouter le CV de base", "Prêt à adapter"];
+  const steps = ["Configure AI", "Add base resume", "Ready to adapt"];
   return (
     <div className="mb-6 flex w-fit items-center rounded-full border border-[var(--line)] bg-[var(--bg-2)] p-1.5 max-[980px]:w-full max-[980px]:flex-col max-[980px]:items-stretch max-[980px]:rounded-[18px]">
       {steps.map((label, index) => {
@@ -159,7 +159,7 @@ function ModelSelect({
             {m}
           </option>
         ))}
-        <option value="__custom__">Saisir un modèle…</option>
+        <option value="__custom__">Enter a model…</option>
       </select>
       <ChevronDown
         className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-[var(--muted)]"
@@ -246,12 +246,12 @@ function ProviderCard({
         >
           <span className="h-1.5 w-1.5 rounded-full" />
           {status === "idle"
-            ? "Non testé"
+            ? "Not tested"
             : status === "checking"
-              ? "Test en cours…"
+              ? "Testing…"
               : status === "available"
-                ? "Disponible · CLI détecté"
-                : "CLI introuvable"}
+                ? "Available · CLI detected"
+                : "CLI not found"}
         </span>
         <button
           className={smallButtonClass}
@@ -278,7 +278,7 @@ function ProviderCard({
           onClick={(e) => e.stopPropagation()}
         >
           <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.1em] text-[var(--muted)] uppercase">
-            <Terminal size={10} /> Modèle
+            <Terminal size={10} /> Model
           </div>
           {selected ? (
             <>
@@ -316,16 +316,15 @@ function SetupAI(props: SetupFlowProps) {
     <main className={pageClass}>
       <div className={heroClass}>
         <div className={eyebrowClass}>
-          <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" /> Bienvenue · première
-          configuration
+          <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" /> Welcome · first setup
         </div>
         <h1 className={h1Class}>
-          Choisissez votre <em className="font-medium text-[var(--accent)] italic">moteur</em>{" "}
-          d&apos;adaptation.
+          Choose your adaptation{" "}
+          <em className="font-medium text-[var(--accent)] italic">engine</em>.
         </h1>
         <p className={ledeClass}>
-          ResumeForge s&apos;appuie sur un assistant local. Aucune donnée ne quitte votre machine
-          au-delà des appels à votre IA configurée.
+          ResumeForge relies on a local assistant. No data leaves your machine beyond calls to your
+          configured AI.
         </p>
       </div>
       <StepRail current={1} />
@@ -352,16 +351,16 @@ function SetupAI(props: SetupFlowProps) {
           size={15}
         />
         <span>
-          Vos clés restent dans la configuration du CLI choisi. Le mode local déterministe reste
-          disponible pour travailler hors-ligne.
+          Your keys stay in the chosen CLI configuration. Local deterministic mode remains
+          available for offline work.
         </span>
       </div>
       <div className="mt-7 flex justify-end gap-2.5">
         <button className={buttonClass} type="button" onClick={props.onContinueFromAI}>
-          Configurer plus tard
+          Configure later
         </button>
         <button className={primaryButtonClass} type="button" onClick={props.onContinueFromAI}>
-          Continuer <ArrowRight size={14} />
+          Continue <ArrowRight size={14} />
         </button>
       </div>
     </main>
@@ -390,14 +389,14 @@ function SetupCV({ onBackToAI, onSaveMasterResume }: SetupFlowProps) {
     <main className={pageClass}>
       <div className={heroClass}>
         <div className={eyebrowClass}>
-          <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" /> Étape 2 · CV de base
+          <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" /> Step 2 · Base resume
         </div>
         <h1 className={h1Class}>
-          Importez votre <em className="font-medium text-[var(--accent)] italic">CV maître</em>.
+          Import your <em className="font-medium text-[var(--accent)] italic">master resume</em>.
         </h1>
         <p className={ledeClass}>
-          C&apos;est la base que ResumeForge adaptera à chaque offre. Collez le HTML ou déposez un
-          fichier local.
+          This is the base that ResumeForge will adapt for each job offer. Paste the HTML or drop a
+          local file.
         </p>
       </div>
       <StepRail current={2} />
@@ -411,7 +410,7 @@ function SetupCV({ onBackToAI, onSaveMasterResume }: SetupFlowProps) {
             type="button"
             onClick={() => setTab("paste")}
           >
-            <Code2 size={13} /> Coller le HTML
+            <Code2 size={13} /> Paste HTML
           </button>
           <button
             className={`inline-flex items-center gap-[7px] rounded-t-md border-b-2 px-3.5 pt-[9px] pb-2.5 text-[13px] font-medium transition-colors hover:text-[var(--ink-2)] ${tab === "file"
@@ -421,7 +420,7 @@ function SetupCV({ onBackToAI, onSaveMasterResume }: SetupFlowProps) {
             type="button"
             onClick={() => setTab("file")}
           >
-            <FileUp size={13} /> Déposer un fichier
+            <FileUp size={13} /> Drop a file
           </button>
         </div>
         <div className="p-[18px]">
@@ -431,7 +430,7 @@ function SetupCV({ onBackToAI, onSaveMasterResume }: SetupFlowProps) {
               value={html}
               onChange={(event) => setHtml(event.target.value)}
               placeholder={
-                "<!doctype html>\n<html>\n  <body>\n    <header>\n      <h1>Votre Nom</h1>\n      <p class=\"contact\">email@exemple.com · Ville</p>\n    </header>\n    <section>\n      <h2>Résumé</h2>\n      <p>…</p>\n    </section>\n    <section>\n      <h2>Expérience</h2>\n      <h3>Rôle · Société</h3>\n      <ul>\n        <li>…</li>\n      </ul>\n    </section>\n  </body>\n</html>"
+                "<!doctype html>\n<html>\n  <body>\n    <header>\n      <h1>Your Name</h1>\n      <p class=\"contact\">email@example.com · City</p>\n    </header>\n    <section>\n      <h2>Summary</h2>\n      <p>…</p>\n    </section>\n    <section>\n      <h2>Experience</h2>\n      <h3>Role · Company</h3>\n      <ul>\n        <li>…</li>\n      </ul>\n    </section>\n  </body>\n</html>"
               }
               spellCheck={false}
             />
@@ -456,10 +455,10 @@ function SetupCV({ onBackToAI, onSaveMasterResume }: SetupFlowProps) {
             >
               <FileUp className="h-[52px] w-[52px] rounded-xl border border-[var(--line)] bg-[var(--bg-2)] p-3.5 text-[var(--ink-2)]" />
               <strong className="font-[family-name:var(--font-display)] text-[17px] font-medium tracking-[-0.01em] text-[var(--ink)]">
-                {fileName ?? "Déposez votre fichier .html"}
+                {fileName ?? "Drop your .html file"}
               </strong>
               <span className="max-w-[340px] text-[13px] leading-normal text-[var(--muted)]">
-                Glissez-déposez votre CV ou cliquez pour choisir un fichier.
+                Drag and drop your resume or click to choose a file.
               </span>
             </button>
           )}
@@ -469,7 +468,7 @@ function SetupCV({ onBackToAI, onSaveMasterResume }: SetupFlowProps) {
             {hasContent ? (
               <>
                 <span className="inline-flex items-center gap-1 text-[var(--success)]">
-                  <Check size={12} /> Détecté
+                  <Check size={12} /> Detected
                 </span>
                 <span>·</span>
                 <span className="font-[family-name:var(--font-mono)]">
@@ -477,11 +476,11 @@ function SetupCV({ onBackToAI, onSaveMasterResume }: SetupFlowProps) {
                 </span>
               </>
             ) : (
-              "En attente d'un CV…"
+              "Waiting for a resume…"
             )}
           </div>
           <button className={smallButtonClass} type="button" disabled={!hasContent}>
-            <Eye size={12} /> Aperçu
+            <Eye size={12} /> Preview
           </button>
         </div>
       </div>
@@ -494,7 +493,7 @@ function SetupCV({ onBackToAI, onSaveMasterResume }: SetupFlowProps) {
       />
       <div className="mt-7 flex justify-between gap-2.5">
         <button className={buttonClass} type="button" onClick={onBackToAI}>
-          Retour
+          Back
         </button>
         <button
           className={primaryButtonClass}
@@ -502,7 +501,7 @@ function SetupCV({ onBackToAI, onSaveMasterResume }: SetupFlowProps) {
           disabled={!hasContent}
           onClick={() => onSaveMasterResume(html)}
         >
-          Enregistrer & commencer <ArrowRight size={14} />
+          Save & start <ArrowRight size={14} />
         </button>
       </div>
     </main>

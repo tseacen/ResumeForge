@@ -20,8 +20,8 @@ interface TopbarProps {
 
 export function Topbar({ phase, title, canExport, activeModel, onReset, onExport }: TopbarProps) {
   const isSetup = phase === "setup-ai" || phase === "setup-cv";
-  const displayTitle = isSetup ? "Configuration" : (title ?? "Nouvelle adaptation");
-  const accent = isSetup ? "initiale" : title ? "" : "adaptation";
+  const displayTitle = isSetup ? "Setup" : (title ?? "New adaptation");
+  const accent = isSetup ? "initial" : title ? "" : "adaptation";
 
   return (
     <header className="flex flex-none items-center justify-between border-b border-[var(--line)] bg-[rgba(250,249,245,0.88)] px-7 py-3.5 backdrop-blur-[10px] max-[980px]:px-4 max-[980px]:py-3">
@@ -31,7 +31,7 @@ export function Topbar({ phase, title, canExport, activeModel, onReset, onExport
         </div>
         {title && !isSetup && (
           <span className="rounded-full border border-[var(--line)] bg-[var(--bg-2)] px-[9px] py-[3px] font-[family-name:var(--font-mono)] text-xs text-[var(--muted)]">
-            v3 · brouillon
+            v3 · draft
           </span>
         )}
       </div>
@@ -43,17 +43,17 @@ export function Topbar({ phase, title, canExport, activeModel, onReset, onExport
         )}
         {title && !isSetup && (
           <button className={`${ghostButton} max-[980px]:hidden`} type="button">
-            <History size={13} /> Historique
+            <History size={13} /> History
           </button>
         )}
         {canExport && (
           <button className={smallButton} type="button" onClick={onExport}>
-            <Download size={13} /> Exporter
+            <Download size={13} /> Export
           </button>
         )}
         {!isSetup && (
           <button className={smallButton} type="button" onClick={onReset}>
-            <RefreshCw size={13} /> Réinitialiser
+            <RefreshCw size={13} /> Reset
           </button>
         )}
       </div>

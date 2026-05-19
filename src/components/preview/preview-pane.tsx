@@ -177,21 +177,21 @@ function DiffAuditPanel({ audit }: { audit: TailoringAuditItem[] }) {
     <div className="rounded-[12px] border border-[var(--line)] bg-[var(--card)] shadow-[var(--shadow-sm)]">
       <div className="border-b border-[var(--line)] px-3.5 py-3">
         <div className="flex items-center gap-2 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--ink)]">
-          <GitCompare size={14} className="text-[var(--accent)]" /> Avant / après
+          <GitCompare size={14} className="text-[var(--accent)]" /> Before / after
         </div>
         <div className="mt-2 flex flex-wrap gap-1.5 text-[11.5px] font-medium">
           <span className="inline-flex items-center gap-1 rounded-full bg-[var(--success-soft)] px-2 py-[3px] text-[var(--success)]">
-            <CheckCircle2 size={12} /> {applied.length} appliquée{applied.length > 1 ? "s" : ""}
+            <CheckCircle2 size={12} /> {applied.length} applied
           </span>
           <span className="inline-flex items-center gap-1 rounded-full bg-[var(--danger-soft)] px-2 py-[3px] text-[var(--danger)]">
-            <Ban size={12} /> {blocked.length} bloquée{blocked.length > 1 ? "s" : ""}
+            <Ban size={12} /> {blocked.length} blocked
           </span>
         </div>
       </div>
       <div className="max-h-[44vh] overflow-auto p-3.5">
         {items.length === 0 ? (
           <p className="m-0 text-[12.5px] leading-[1.45] text-[var(--muted)]">
-            Aucun changement auditable pour cette génération.
+            No auditable changes for this generation.
           </p>
         ) : (
           <div className="grid gap-3">
@@ -206,7 +206,7 @@ function DiffAuditPanel({ audit }: { audit: TailoringAuditItem[] }) {
               >
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <span className="text-[11px] font-semibold tracking-[0.14em] text-[var(--muted)] uppercase">
-                    {item.status === "applied" ? "Appliqué" : "Bloqué"}
+                    {item.status === "applied" ? "Applied" : "Blocked"}
                   </span>
                   <span className="rounded-full bg-[var(--card)] px-2 py-[2px] text-[10.5px] font-medium text-[var(--muted)]">
                     {item.targetKind}
@@ -214,13 +214,13 @@ function DiffAuditPanel({ audit }: { audit: TailoringAuditItem[] }) {
                 </div>
                 <div className="grid gap-2 text-[12px] leading-[1.45]">
                   <div>
-                    <span className="mb-1 block font-medium text-[var(--muted)]">Avant</span>
+                    <span className="mb-1 block font-medium text-[var(--muted)]">Before</span>
                     <p className="m-0 rounded-md bg-[rgba(255,255,255,0.72)] p-2 text-[var(--ink-2)]">
                       {item.originalText}
                     </p>
                   </div>
                   <div>
-                    <span className="mb-1 block font-medium text-[var(--muted)]">Après</span>
+                    <span className="mb-1 block font-medium text-[var(--muted)]">After</span>
                     <p className="m-0 rounded-md bg-[var(--card)] p-2 text-[var(--ink)]">
                       {item.rewrittenText}
                     </p>
@@ -248,16 +248,16 @@ function EmptyPreview() {
     <aside className="flex min-w-0 flex-col bg-[var(--bg-2)] max-[980px]:hidden">
       <div className="flex items-center justify-between border-b border-[var(--line)] bg-[rgba(245,242,234,0.86)] px-[18px] py-3.5 backdrop-blur-[10px]">
         <div className="flex min-w-0 items-center gap-2 font-[family-name:var(--font-display)] text-sm font-medium tracking-[-0.005em] text-[var(--ink)]">
-          <FileText size={14} /> CV — aperçu
+          <FileText size={14} /> Resume — preview
         </div>
       </div>
       <div className="flex flex-1 flex-col items-center justify-center gap-3.5 p-10 text-center text-[var(--muted)]">
         <FileText className="h-[72px] w-[72px] rounded-[18px] border border-[var(--line)] bg-[var(--card)] p-[21px] shadow-[var(--shadow-sm)]" />
         <strong className="font-[family-name:var(--font-display)] text-lg font-medium tracking-[-0.01em] text-[var(--ink)]">
-          L&apos;aperçu apparaîtra ici
+          Preview will appear here
         </strong>
         <span className="max-w-[280px] text-[13.5px] leading-[1.55]">
-          Ajoutez un CV maître pour le visualiser pendant l&apos;adaptation.
+          Add a master resume to preview it during adaptation.
         </span>
       </div>
     </aside>
@@ -277,7 +277,7 @@ export function PreviewPane({
   const safeMode = hasAdapted ? mode : "original";
   const displayedHtml = safeMode === "original" ? originalHtml : (adaptedHtml ?? originalHtml);
   const title =
-    safeMode === "diff" ? "Diff intelligent" : safeMode === "adapted" ? "CV adapté" : "CV de base";
+    safeMode === "diff" ? "Smart diff" : safeMode === "adapted" ? "Adapted resume" : "Base resume";
 
   return (
     <aside className="flex min-w-0 flex-col bg-[var(--bg-2)] max-[980px]:hidden">
@@ -292,7 +292,7 @@ export function PreviewPane({
             onClick={() => onModeChange("original")}
           />
           <ModeButton
-            label="Adapté"
+            label="Adapted"
             active={safeMode === "adapted"}
             disabled={!hasAdapted}
             onClick={() => onModeChange("adapted")}
