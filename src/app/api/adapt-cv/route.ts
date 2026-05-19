@@ -19,12 +19,23 @@ const AnswerSchema = z.object({
   answer: z.string(),
 });
 
+const PreviousAuditItemSchema = z.object({
+  id: z.string(),
+  status: z.enum(["applied", "blocked", "skipped"]),
+  targetKind: z.enum(["summary", "experience", "project", "skill", "other"]),
+  originalText: z.string(),
+  rewrittenText: z.string(),
+  reason: z.string(),
+});
+
 const BodySchema = z.object({
   resumeHtml: z.string().min(20),
   jobText: z.string().min(20),
   jobAnalysis: JobAnalysisSchema,
   compatibilityReport: CompatibilityReportSchema,
   answers: z.array(AnswerSchema).default([]),
+  revisionInstructions: z.array(z.string().min(2)).max(20).default([]),
+  previousAudit: z.array(PreviousAuditItemSchema).max(60).default([]),
   provider: AIProviderIdSchema.optional(),
   model: z.string().optional(),
   language: z.enum(["en", "fr"]).default("en"),
@@ -67,6 +78,8 @@ export async function POST(request: Request) {
       jobAnalysis: body.jobAnalysis,
       compatibilityReport: body.compatibilityReport,
       answers: body.answers,
+      revisionInstructions: body.revisionInstructions,
+      previousAudit: body.previousAudit,
       language: body.language,
     });
     devLog("api/adapt-cv", "tailored CV ready", {
