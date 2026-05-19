@@ -1,6 +1,6 @@
 "use client";
 
-import { Edit3, Settings, Sparkles, Trash2 } from "lucide-react";
+import { Edit3, Settings, Trash2 } from "lucide-react";
 
 import { createTranslator, type AppLocale } from "@/lib/i18n";
 import { type AdaptationSessionSummary } from "@/lib/schemas/session.schema";
@@ -52,9 +52,6 @@ export function Sidebar({
   return (
     <aside className="sticky top-0 flex h-screen flex-col overflow-hidden border-r border-[var(--line)] bg-[var(--bg-2)] max-[980px]:hidden">
       <div className="flex items-center gap-2.5 px-4 pt-[18px] pb-3">
-        <div className="grid h-[30px] w-[30px] flex-none place-items-center rounded-lg bg-[var(--ink)] text-[var(--bg)]">
-          <Sparkles size={15} strokeWidth={1.8} />
-        </div>
         <div className="font-[family-name:var(--font-display)] text-[17px] font-medium tracking-[-0.015em] text-[var(--ink)]">
           Resume<em className="font-medium text-[var(--accent)] italic">Forge</em>
         </div>
