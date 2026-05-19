@@ -9,7 +9,14 @@ import { Topbar } from "@/components/layout/topbar";
 import { PreviewPane } from "@/components/preview/preview-pane";
 import { SetupFlow } from "@/components/setup/setup-flow";
 import { createTranslator, localeFromUnknown, providerDisplayName } from "@/lib/i18n";
-import { adaptResume, analyzeJob, checkCli, scoreCompatibility } from "@/lib/llm/client";
+import { extractJobOfferUrlCandidate } from "@/lib/job-offer/input-validation";
+import {
+  adaptResume,
+  analyzeJob,
+  checkCli,
+  importJobOfferFromUrl,
+  scoreCompatibility,
+} from "@/lib/llm/client";
 import { fetchModelsForProvider } from "@/lib/llm/models-client";
 import { devError, devLog, devTimer } from "@/lib/logger";
 import {
@@ -465,7 +472,48 @@ export function ResumeForgeApp() {
     const session = initializeSession(jobText, state.settings.language);
     latestSessionRef.current = session;
     dispatch({ type: "session/replace", session });
-    await runJobAnalysis(session);
+
+    const urlCandidate = extractJobOfferUrlCandidate(jobText);
+    if (!urlCandidate) {
+      await runJobAnalysis(session);
+      return;
+    }
+
+    setIsBusy(true);
+    const importingLabel = t("app.thinking.importingJobUrl");
+    const importingSession = setSessionThinking(
+      clearTransientMessages(session),
+      importingLabel,
+      "chat-analyzing"
+    );
+    latestSessionRef.current = importingSession;
+    dispatch({ type: "session/replace", session: importingSession });
+
+    try {
+      const imported = await importJobOfferFromUrl({
+        rawInput: jobText,
+        language: state.settings.language,
+      });
+      const importedSession = addSessionAssistantMessage(
+        {
+          ...clearSessionThinking(importingSession),
+          jobText: imported.jobText,
+          updatedAt: new Date().toISOString(),
+        },
+        [t("agent.urlImportSuccess", { sourceHost: imported.sourceHost })]
+      );
+      latestSessionRef.current = importedSession;
+      dispatch({ type: "session/replace", session: importedSession });
+      await runJobAnalysis(importedSession);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : t("app.jobOfferUrlImportFailed");
+      const errored = setSessionError(clearSessionThinking(importingSession), message);
+      latestSessionRef.current = errored;
+      dispatch({ type: "session/replace", session: errored });
+    } finally {
+      setIsBusy(false);
+    }
   }
 
   function jobAnalysisFromSession(session: AdaptationSession) {
