@@ -1,7 +1,3 @@
-// Logique métier "pure" : prend un LLMProvider + les entrées brutes, retourne
-// un résultat typé. Sans transport HTTP, sans dépendance à Next runtime.
-// Utilisé à la fois par les routes /api/* (mode web/dev) et par le client Tauri.
-
 import { parseResumeHtml } from "@/lib/parsers/parse-resume-html";
 import { type TailoredResume } from "@/lib/schemas/tailoring.schema";
 import { applyTailoringPlan } from "@/lib/tailoring/adapt-resume";

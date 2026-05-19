@@ -177,7 +177,7 @@ export class GeminiCliProvider implements LLMProvider {
 
   async complete(params: LLMCompletionParams): Promise<LLMCompletionResult> {
     const prompt = combineMessages(params.messages);
-    // gemini CLI attend une valeur pour -p/--prompt (stdin seul ne suffit pas).
+    // Gemini CLI requires -p/--prompt; stdin alone is not supported.
     const args: string[] = [];
     if (this.model) args.push("--model", this.model);
     args.push("-p", prompt);

@@ -30,10 +30,6 @@ export function toneFor(value: number): ScoreTableRow["tone"] {
   return "bad";
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-// CREATION
-// ──────────────────────────────────────────────────────────────────────────────
-
 export function initializeSession(jobText: string): AdaptationSession {
   const now = isoNow();
   const userMessage: ChatMessage = {
@@ -56,10 +52,6 @@ export function initializeSession(jobText: string): AdaptationSession {
     ],
   };
 }
-
-// ──────────────────────────────────────────────────────────────────────────────
-// APPLY JOB ANALYSIS (étape 1)
-// ──────────────────────────────────────────────────────────────────────────────
 
 export function applyJobAnalysis(
   session: AdaptationSession,
@@ -136,10 +128,6 @@ export function clearSessionThinking(session: AdaptationSession): AdaptationSess
   };
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-// ANSWER A CLARIFICATION
-// ──────────────────────────────────────────────────────────────────────────────
-
 export function answerClarification(
   session: AdaptationSession,
   questionId: string,
@@ -164,10 +152,6 @@ export function allClarificationsAnswered(session: AdaptationSession): boolean {
   if (session.clarifications.length === 0) return true;
   return session.clarifications.every((q) => typeof q.answeredWith === "string" && q.answeredWith.length > 0);
 }
-
-// ──────────────────────────────────────────────────────────────────────────────
-// APPLY SCORE (étape 2)
-// ──────────────────────────────────────────────────────────────────────────────
 
 export function applyScoreTable(
   session: AdaptationSession,
@@ -218,10 +202,6 @@ export function applyScoreTable(
   };
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-// APPLY TAILORED RESUME (étape 3)
-// ──────────────────────────────────────────────────────────────────────────────
-
 export function applyTailoredResume(
   session: AdaptationSession,
   tailoredResume: TailoredResume
@@ -262,10 +242,6 @@ export function applyTailoredResume(
   };
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-// ERROR HANDLING
-// ──────────────────────────────────────────────────────────────────────────────
-
 export function setSessionError(session: AdaptationSession, message: string): AdaptationSession {
   const cleaned = session.messages.filter((m) => m.kind !== "thinking" && m.kind !== "error");
   return {
@@ -274,10 +250,6 @@ export function setSessionError(session: AdaptationSession, message: string): Ad
     messages: [...cleaned, { kind: "error", id: `error-${nanoid(6)}`, message }],
   };
 }
-
-// ──────────────────────────────────────────────────────────────────────────────
-// SUMMARY (sidebar)
-// ──────────────────────────────────────────────────────────────────────────────
 
 export function summarizeSession(session: AdaptationSession): AdaptationSessionSummary {
   const status: AdaptationSessionSummary["status"] =

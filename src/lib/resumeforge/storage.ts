@@ -16,8 +16,7 @@ export function loadPersistedState(): ResumeForgePersistedState | null {
     const strict = ResumeForgePersistedStateSchema.safeParse(parsed);
     if (strict.success) return strict.data;
 
-    // Migration douce : si la structure globale a évolué (sessions/score), on garde
-    // au moins les settings et le CV maître pour ne pas reset l'utilisateur.
+    // Partial migration: preserve settings and master CV when the schema evolves.
     if (parsed && typeof parsed === "object") {
       const obj = parsed as Record<string, unknown>;
       const settingsParse = AppSettingsSchema.safeParse(obj.settings);
