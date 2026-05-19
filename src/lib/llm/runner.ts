@@ -1,3 +1,4 @@
+import { type AppLocale } from "@/lib/i18n";
 import { parseResumeHtml } from "@/lib/parsers/parse-resume-html";
 import { type TailoredResume } from "@/lib/schemas/tailoring.schema";
 import { applyTailoringPlan } from "@/lib/tailoring/adapt-resume";
@@ -21,6 +22,7 @@ import { type LLMProvider } from "./provider";
 export interface RunAnalyzeJobParams {
   resumeHtml: string;
   jobText: string;
+  language: AppLocale;
 }
 
 export async function runAnalyzeJob(
@@ -36,6 +38,7 @@ export async function runAnalyzeJob(
         content: buildAnalyzeJobUserPayload({
           jobText: params.jobText,
           resumeFacts: resume.facts,
+          language: params.language,
         }),
       },
     ],
@@ -50,6 +53,7 @@ export interface RunScoreParams {
   jobText: string;
   jobAnalysis: JobAnalysis;
   answers: Array<{ id: string; question: string; answer: string }>;
+  language: AppLocale;
 }
 
 export async function runScore(
@@ -67,6 +71,7 @@ export async function runScore(
           resumeFacts: resume.facts,
           jobAnalysis: params.jobAnalysis,
           answers: params.answers,
+          language: params.language,
         }),
       },
     ],
@@ -82,6 +87,7 @@ export interface RunTailorResumeParams {
   jobAnalysis: JobAnalysis;
   compatibilityReport: CompatibilityReport;
   answers: Array<{ id: string; question: string; answer: string }>;
+  language: AppLocale;
 }
 
 export async function runTailorResume(
@@ -100,6 +106,7 @@ export async function runTailorResume(
           jobAnalysis: params.jobAnalysis,
           compatibilityReport: params.compatibilityReport,
           answers: params.answers,
+          language: params.language,
         }),
       },
     ],

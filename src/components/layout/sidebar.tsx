@@ -2,6 +2,7 @@
 
 import { Edit3, Settings, Sparkles, Trash2 } from "lucide-react";
 
+import { createTranslator, type AppLocale } from "@/lib/i18n";
 import { type AdaptationSessionSummary } from "@/lib/schemas/session.schema";
 
 const sidebarRow =
@@ -11,6 +12,7 @@ const sidebarLink =
   "flex flex-1 flex-col gap-px rounded-[7px] px-2.5 py-2 text-left text-[var(--ink-2)] focus:outline-none";
 
 interface SidebarProps {
+  locale: AppLocale;
   sessions: AdaptationSessionSummary[];
   activeSessionId: string | null;
   onNewSession: () => void;
@@ -19,18 +21,20 @@ interface SidebarProps {
   onOpenSettings: () => void;
 }
 
-function groupLabel(dateIso: string): string {
+function groupLabel(dateIso: string, locale: AppLocale): string {
+  const t = createTranslator(locale);
   const date = new Date(dateIso);
   const today = new Date();
   const yesterday = new Date();
   yesterday.setDate(today.getDate() - 1);
 
-  if (date.toDateString() === today.toDateString()) return "Today";
-  if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
-  return "This week";
+  if (date.toDateString() === today.toDateString()) return t("sidebar.today");
+  if (date.toDateString() === yesterday.toDateString()) return t("sidebar.yesterday");
+  return t("sidebar.thisWeek");
 }
 
 export function Sidebar({
+  locale,
   sessions,
   activeSessionId,
   onNewSession,
@@ -38,8 +42,9 @@ export function Sidebar({
   onDeleteSession,
   onOpenSettings,
 }: SidebarProps) {
+  const t = createTranslator(locale);
   const grouped = sessions.reduce<Record<string, AdaptationSessionSummary[]>>((acc, session) => {
-    const label = groupLabel(session.updatedAt);
+    const label = groupLabel(session.updatedAt, locale);
     acc[label] = [...(acc[label] ?? []), session];
     return acc;
   }, {});
@@ -61,7 +66,9 @@ export function Sidebar({
         onClick={onNewSession}
       >
         <Edit3 size={15} />
-        <span className="flex-1 overflow-hidden text-left text-ellipsis">New adaptation</span>
+        <span className="flex-1 overflow-hidden text-left text-ellipsis">
+          {t("sidebar.newAdaptation")}
+        </span>
         <span className="rounded border border-[var(--line)] bg-[var(--bg-2)] px-1.5 py-px font-[family-name:var(--font-mono)] text-[10.5px] text-[var(--muted)] max-[1080px]:hidden">
           ⌘ N
         </span>
@@ -70,7 +77,7 @@ export function Sidebar({
       <div className="flex-1 overflow-y-auto px-2 pb-3">
         {Object.entries(grouped).length === 0 && (
           <div className="px-2.5 py-[18px] text-[12.5px] text-[var(--muted)]">
-            Your recent adaptations will appear here.
+            {t("sidebar.empty")}
           </div>
         )}
         {Object.entries(grouped).map(([day, items]) => (
@@ -98,19 +105,21 @@ export function Sidebar({
                       </span>
                     )}
                     <span>·</span>
-                    <span>{session.status === "adapted" ? "Adapted" : "Diagnosis"}</span>
+                    <span>
+                      {session.status === "adapted"
+                        ? t("sidebar.status.adapted")
+                        : t("sidebar.status.diagnosis")}
+                    </span>
                   </div>
                 </button>
                 <button
                   type="button"
                   className="absolute top-1/2 right-1.5 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-md text-[var(--muted)] opacity-0 transition-opacity hover:bg-[rgba(181,57,47,0.12)] hover:text-[var(--danger)] focus:opacity-100 group-hover:opacity-100"
-                  title="Delete this adaptation"
-                  aria-label={`Delete ${session.title}`}
+                  title={t("sidebar.deleteTitle")}
+                  aria-label={t("sidebar.deleteAria", { title: session.title })}
                   onClick={(event) => {
                     event.stopPropagation();
-                    if (
-                      window.confirm(`Permanently delete "${session.title}"? This action cannot be undone.`)
-                    ) {
+                    if (window.confirm(t("sidebar.deleteConfirm", { title: session.title }))) {
                       onDeleteSession(session.id);
                     }
                   }}
@@ -130,15 +139,15 @@ export function Sidebar({
           </div>
           <div>
             <div className="text-[13px] leading-[1.2] font-medium text-[var(--ink)]">
-              Local session
+              {t("sidebar.localSession")}
             </div>
-            <div className="text-[11px] text-[var(--muted)]">Local data</div>
+            <div className="text-[11px] text-[var(--muted)]">{t("sidebar.localData")}</div>
           </div>
         </div>
         <button
           className="grid h-7 w-7 place-items-center rounded-md text-[var(--muted)] hover:bg-[rgba(31,30,27,0.06)] hover:text-[var(--ink)]"
           type="button"
-          title="Settings"
+          title={t("sidebar.settings")}
           onClick={onOpenSettings}
         >
           <Settings size={16} />

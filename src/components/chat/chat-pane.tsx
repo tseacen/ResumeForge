@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { createTranslator, type AppLocale, type Translator } from "@/lib/i18n";
 import {
   type ChatMessage,
   type ClarificationQuestion,
@@ -26,6 +27,7 @@ import {
 import { type AdaptationSession } from "@/lib/schemas/session.schema";
 
 interface ChatPaneProps {
+  locale: AppLocale;
   session: AdaptationSession | null;
   masterResumeReady: boolean;
   providerReady: boolean;
@@ -101,7 +103,15 @@ function AssistantBubble({ body }: { body: string[] }) {
   );
 }
 
-function UserBubble({ body, truncated }: { body: string; truncated: boolean }) {
+function UserBubble({
+  body,
+  truncated,
+  t,
+}: {
+  body: string;
+  truncated: boolean;
+  t: Translator;
+}) {
   const [expanded, setExpanded] = useState(false);
   const shown = truncated && !expanded ? `${body.slice(0, 220)}…` : body;
   return (
@@ -114,7 +124,7 @@ function UserBubble({ body, truncated }: { body: string; truncated: boolean }) {
             type="button"
             onClick={() => setExpanded((value) => !value)}
           >
-            {expanded ? "Collapse" : "Show all"}
+            {expanded ? t("chat.collapse") : t("chat.showAll")}
           </button>
         )}
       </div>
@@ -145,10 +155,12 @@ function ThinkingLine({ label }: { label: string }) {
 
 function ErrorBox({
   message,
+  t,
   canRetry,
   onRetry,
 }: {
   message: string;
+  t: Translator;
   canRetry: boolean;
   onRetry: () => void;
 }) {
@@ -156,7 +168,7 @@ function ErrorBox({
     <div className="flex items-start gap-3 rounded-[12px] border border-[rgba(181,57,47,0.25)] bg-[var(--danger-soft)] px-4 py-3.5 text-[var(--danger)]">
       <AlertCircle size={18} className="mt-px flex-none" strokeWidth={2} />
       <div className="min-w-0 flex-1">
-        <strong className="block text-[13px] font-semibold">The AI did not respond.</strong>
+        <strong className="block text-[13px] font-semibold">{t("chat.errorTitle")}</strong>
         <p className="m-0 mt-1 text-[13px] leading-[1.55] break-words text-[rgba(181,57,47,0.95)]">
           {message}
         </p>
@@ -167,7 +179,7 @@ function ErrorBox({
             onClick={onRetry}
             disabled={!canRetry}
           >
-            Retry
+            {t("chat.retry")}
           </button>
         </div>
       </div>
@@ -177,9 +189,11 @@ function ErrorBox({
 
 function ClarificationCard({
   question,
+  t,
   onAnswer,
 }: {
   question: ClarificationQuestion;
+  t: Translator;
   onAnswer: (questionId: string, answer: string) => void;
 }) {
   const [custom, setCustom] = useState("");
@@ -222,8 +236,8 @@ function ClarificationCard({
         <>
           <p className="mt-2 text-[11.5px] text-[var(--muted)]">
             {isMultiple
-              ? "Multiple answers allowed."
-              : "Choose an answer or type a custom reply."}
+              ? t("chat.multipleAnswersAllowed")
+              : t("chat.chooseOrType")}
           </p>
           <div className="mt-3 flex flex-wrap gap-1.5">
             {question.suggestedAnswers.map((answer) => (
@@ -250,7 +264,7 @@ function ClarificationCard({
           <div className="mt-2 flex gap-1.5">
             <input
               className="flex-1 rounded-md border border-[var(--line)] bg-[var(--card)] px-2.5 py-1.5 text-[13px] text-[var(--ink)] outline-none focus:border-[var(--accent)] focus:shadow-[var(--focus)]"
-              placeholder="Custom answer…"
+              placeholder={t("chat.customAnswerPlaceholder")}
               value={custom}
               onChange={(e) => setCustom(e.target.value)}
               onKeyDown={(e) => {
@@ -277,22 +291,28 @@ function ClarificationCard({
                 setCustom("");
               }}
             >
-              {isMultiple ? "Confirm selection" : "Confirm"}
+              {isMultiple ? t("chat.confirmSelection") : t("chat.confirm")}
             </button>
           </div>
         </>
       )}
       {answered && (
         <div className="mt-2.5 text-[12.5px] text-[var(--success)]">
-          ✓ Answer: {question.answeredWith}
+          ✓ {t("chat.answerPrefix")}: {question.answeredWith}
         </div>
       )}
     </div>
   );
 }
 
-function ScoreTableCard({ table }: { table: ScoreTable }) {
+function ScoreTableCard({ table, t }: { table: ScoreTable; t: Translator }) {
   const [animated, setAnimated] = useState(false);
+  const riskLabel =
+    table.riskLevel === "low"
+      ? t("chat.risk.low")
+      : table.riskLevel === "medium"
+        ? t("chat.risk.medium")
+        : t("chat.risk.high");
   useEffect(() => {
     const id = window.setTimeout(() => setAnimated(true), 80);
     return () => window.clearTimeout(id);
@@ -303,7 +323,7 @@ function ScoreTableCard({ table }: { table: ScoreTable }) {
       <div className="flex flex-wrap items-center justify-between gap-3.5 border-b border-[var(--line)] px-[18px] pt-3.5 pb-3">
         <div className="flex items-center gap-2.5 font-[family-name:var(--font-display)] text-[15px] font-medium tracking-[-0.01em] text-[var(--ink)]">
           <TrendingUp className="h-[26px] w-[26px] rounded-[7px] bg-[var(--accent-tint)] p-1.5 text-[var(--accent)]" />
-          Compatibility table
+          {t("chat.compatibilityTable")}
           <span
             className={`ml-2 rounded-full border px-2 py-[2px] text-[10.5px] font-medium tracking-wider uppercase ${
               table.riskLevel === "low"
@@ -313,7 +333,7 @@ function ScoreTableCard({ table }: { table: ScoreTable }) {
                   : "border-[var(--danger)]/30 bg-[var(--danger-soft)] text-[var(--danger)]"
             }`}
           >
-            Risk {table.riskLevel}
+            {t("chat.riskLabel", { risk: riskLabel })}
           </span>
         </div>
         <div className="inline-flex items-baseline gap-1.5">
@@ -356,7 +376,7 @@ function ScoreTableCard({ table }: { table: ScoreTable }) {
           {table.strengths.length > 0 && (
             <div>
               <div className="mb-1 text-[10.5px] font-semibold tracking-wider text-[var(--success)] uppercase">
-                Strengths
+                {t("chat.strengths")}
               </div>
               <ul className="m-0 list-none space-y-1 p-0 text-[var(--ink-2)]">
                 {table.strengths.map((s, i) => (
@@ -370,7 +390,7 @@ function ScoreTableCard({ table }: { table: ScoreTable }) {
           {table.weaknesses.length > 0 && (
             <div>
               <div className="mb-1 text-[10.5px] font-semibold tracking-wider text-[var(--warn)] uppercase">
-                Weaknesses
+                {t("chat.weaknesses")}
               </div>
               <ul className="m-0 list-none space-y-1 p-0 text-[var(--ink-2)]">
                 {table.weaknesses.map((s, i) => (
@@ -384,7 +404,7 @@ function ScoreTableCard({ table }: { table: ScoreTable }) {
           {table.blockers.length > 0 && (
             <div>
               <div className="mb-1 text-[10.5px] font-semibold tracking-wider text-[var(--danger)] uppercase">
-                Blockers
+                {t("chat.blockers")}
               </div>
               <ul className="m-0 list-none space-y-1 p-0 text-[var(--ink-2)]">
                 {table.blockers.map((s, i) => (
@@ -399,7 +419,7 @@ function ScoreTableCard({ table }: { table: ScoreTable }) {
       )}
       {table.missingKeywords.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 border-t border-[var(--line)] bg-[var(--bg-2)] px-[18px] py-3 text-xs text-[var(--muted)]">
-          <span className="font-medium">Missing keywords:</span>
+          <span className="font-medium">{t("chat.missingKeywords")}</span>
           {table.missingKeywords.map((need) => (
             <em
               key={need.term}
@@ -414,7 +434,7 @@ function ScoreTableCard({ table }: { table: ScoreTable }) {
       {table.interviewRisks.length > 0 && (
         <div className="border-t border-[var(--line)] bg-[var(--card-2)] px-[18px] py-3 text-[12.5px] text-[var(--ink-2)]">
           <div className="mb-1 text-[10.5px] font-semibold tracking-wider text-[var(--muted)] uppercase">
-            Interview risks
+            {t("chat.interviewRisks")}
           </div>
           <ul className="m-0 list-none space-y-0.5 p-0">
             {table.interviewRisks.map((r, i) => (
@@ -429,11 +449,15 @@ function ScoreTableCard({ table }: { table: ScoreTable }) {
 
 function AdaptationResultCard({
   result,
+  t,
 }: {
   result: Extract<ChatMessage, { kind: "adaptation-result" }>["result"];
+  t: Translator;
 }) {
   const applied = result.audit.filter((item) => item.status === "applied");
   const blocked = result.audit.filter((item) => item.status === "blocked");
+  const appliedPlural = applied.length > 1 ? "s" : "";
+  const blockedPlural = blocked.length > 1 ? "s" : "";
   const shownChanges = [...applied, ...blocked].slice(0, 4);
 
   return (
@@ -442,7 +466,7 @@ function AdaptationResultCard({
         <div>
           <div className="flex items-center gap-2.5 font-[family-name:var(--font-display)] text-[15px] font-medium tracking-[-0.01em] text-[var(--ink)]">
             <ShieldCheck className="h-[26px] w-[26px] rounded-[7px] bg-[var(--success-soft)] p-1.5 text-[var(--success)]" />
-            Adapted CV generated
+            {t("chat.adaptedCvGenerated")}
           </div>
           <p className="m-0 mt-1 max-w-[560px] text-[12.5px] leading-[1.45] text-[var(--muted)]">
             {result.summary}
@@ -450,10 +474,12 @@ function AdaptationResultCard({
         </div>
         <div className="flex gap-1.5 text-[11.5px] font-medium">
           <span className="inline-flex items-center gap-1 rounded-full border border-[var(--success)]/25 bg-[var(--success-soft)] px-2 py-1 text-[var(--success)]">
-            <CheckCircle2 size={12} /> {applied.length} applied
+            <CheckCircle2 size={12} />{" "}
+            {t("chat.appliedCount", { count: applied.length, plural: appliedPlural })}
           </span>
           <span className="inline-flex items-center gap-1 rounded-full border border-[var(--danger)]/20 bg-[var(--danger-soft)] px-2 py-1 text-[var(--danger)]">
-            <Ban size={12} /> {blocked.length} blocked
+            <Ban size={12} />{" "}
+            {t("chat.blockedCount", { count: blocked.length, plural: blockedPlural })}
           </span>
         </div>
       </div>
@@ -464,7 +490,7 @@ function AdaptationResultCard({
               <div className="flex items-center justify-between gap-2">
                 <span className="inline-flex items-center gap-1.5 font-medium text-[var(--ink-2)]">
                   <GitCompare size={13} className="text-[var(--muted)]" />
-                  {item.status === "applied" ? "Safe change" : "Blocked change"}
+                  {item.status === "applied" ? t("chat.safeChange") : t("chat.blockedChange")}
                 </span>
                 <span
                   className={`rounded-full px-2 py-[2px] text-[10.5px] font-semibold tracking-wider uppercase ${
@@ -488,7 +514,7 @@ function AdaptationResultCard({
       )}
       {result.skippedKeywords.length > 0 && (
         <div className="border-t border-[var(--line)] bg-[var(--bg-2)] px-[18px] py-3 text-[12.5px] text-[var(--muted)]">
-          <span className="font-medium text-[var(--ink-2)]">Not added — unsupported: </span>
+          <span className="font-medium text-[var(--ink-2)]">{t("chat.notAddedUnsupported")} </span>
           {result.skippedKeywords.map((keyword, index) => (
             <span key={keyword.term}>
               {index > 0 ? ", " : ""}
@@ -507,12 +533,14 @@ function Welcome({
   masterResumeReady,
   providerReady,
   providerLabel,
+  t,
 }: {
   onEditMasterResume: () => void;
   onOpenSettings: () => void;
   masterResumeReady: boolean;
   providerReady: boolean;
   providerLabel: string;
+  t: Translator;
 }) {
   return (
     <div className="flex min-h-full items-center justify-center px-7 pt-10 pb-20">
@@ -521,33 +549,33 @@ function Welcome({
           <span
             className={`h-1.5 w-1.5 rounded-full ${providerReady ? "bg-[var(--accent)]" : "bg-[var(--warn)]"}`}
           />
-          {providerReady ? "Ready" : `${providerLabel} not detected`}
+          {providerReady
+            ? t("chat.welcomeReady")
+            : t("chat.providerNotDetected", { provider: providerLabel })}
         </div>
         <h1 className="m-0 mb-3.5 font-[family-name:var(--font-display)] text-[40px] leading-[1.05] font-medium tracking-[-0.03em] text-balance text-[var(--ink)]">
-          Which offer do you want to <em className="font-medium text-[var(--accent)] italic">adapt</em>{" "}
-          today?
+          {t("chat.welcomeTitle")}
         </h1>
         <p className="mt-0 mb-[24px] max-w-[540px] text-[15.5px] leading-[1.55] text-pretty text-[var(--ink-3)]">
-          Paste the offer. I analyze it, ask the useful questions if needed, then generate
-          the compatibility table — without inventing anything.
+          {t("chat.welcomeLede")}
         </p>
         {!providerReady && (
           <div className="mb-4 flex items-start justify-between gap-3 rounded-[10px] border border-[rgba(181,136,46,0.22)] bg-[var(--warn-soft)] px-3 py-2.5 text-[var(--warn)]">
             <span>
-              <strong>{providerLabel}</strong> is not detected. No analysis will run until the CLI is installed.
+              {t("chat.providerWarning", { provider: providerLabel })}
             </span>
             <button
               className="ml-auto inline-flex items-center gap-1 rounded-md border border-[rgba(181,136,46,0.32)] bg-[var(--card)] px-2 py-1 text-[12px] font-medium text-[var(--ink-2)] whitespace-nowrap hover:bg-[var(--card-2)]"
               type="button"
               onClick={onOpenSettings}
             >
-              Configure
+              {t("chat.configure")}
             </button>
           </div>
         )}
         {!masterResumeReady && (
           <div className="mb-4 rounded-[10px] border border-[rgba(181,136,46,0.22)] bg-[var(--warn-soft)] px-3 py-2.5 text-[var(--warn)]">
-            Add your master CV first to start an adaptation.
+            {t("chat.addMasterResumeWarning")}
           </div>
         )}
         <div className="mt-4 flex flex-wrap gap-2 text-[13px] text-[var(--muted)]">
@@ -556,13 +584,13 @@ function Welcome({
             type="button"
             onClick={onEditMasterResume}
           >
-            <Pencil size={13} /> Edit master CV
+            <Pencil size={13} /> {t("chat.editMasterCv")}
           </button>
           <span className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-[var(--line)] px-2.5 py-1 text-[var(--muted-2)]">
-            <LinkIcon size={13} /> URL import — soon
+            <LinkIcon size={13} /> {t("chat.urlImportSoon")}
           </span>
           <span className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-[var(--line)] px-2.5 py-1 text-[var(--muted-2)]">
-            <FolderOpen size={13} /> Resume session — soon
+            <FolderOpen size={13} /> {t("chat.sessionSoon")}
           </span>
         </div>
       </div>
@@ -571,9 +599,11 @@ function Welcome({
 }
 
 function Composer({
+  t,
   disabled,
   onSubmitJob,
 }: {
+  t: Translator;
   disabled?: boolean;
   onSubmitJob: (jobText: string) => void;
 }) {
@@ -603,7 +633,7 @@ function Composer({
           disabled={disabled}
           rows={1}
           onChange={(event) => setValue(event.target.value)}
-          placeholder="Paste the job offer…"
+          placeholder={t("chat.pasteJobOffer")}
           onKeyDown={(event) => {
             if (event.key === "Enter" && !event.shiftKey) {
               event.preventDefault();
@@ -615,7 +645,7 @@ function Composer({
           <button
             className="grid h-8 w-8 place-items-center rounded-lg text-[var(--muted)] hover:bg-[var(--bg-2)] hover:text-[var(--ink)]"
             type="button"
-            title="Attach"
+            title={t("chat.attach")}
             disabled={disabled}
           >
             <Paperclip size={15} />
@@ -623,7 +653,7 @@ function Composer({
           <button
             className="grid h-8 w-8 place-items-center rounded-lg text-[var(--muted)] hover:bg-[var(--bg-2)] hover:text-[var(--ink)]"
             type="button"
-            title="Dictate"
+            title={t("chat.dictate")}
             disabled={disabled}
           >
             <Mic size={15} />
@@ -644,6 +674,7 @@ function Composer({
 
 function renderMessage(
   message: ChatMessage,
+  t: Translator,
   onAnswerQuestion: (id: string, answer: string) => void,
   canRetry: boolean,
   onRetry: () => void
@@ -652,23 +683,31 @@ function renderMessage(
     case "assistant":
       return <AssistantBubble key={message.id} body={message.body} />;
     case "user":
-      return <UserBubble key={message.id} body={message.body} truncated={message.truncated} />;
+      return <UserBubble key={message.id} body={message.body} truncated={message.truncated} t={t} />;
     case "thinking":
       return <ThinkingLine key="thinking" label={message.label} />;
     case "clarifications":
       return (
         <div key={message.id} className="flex flex-col gap-2.5">
           {message.questions.map((q) => (
-            <ClarificationCard key={q.id} question={q} onAnswer={onAnswerQuestion} />
+            <ClarificationCard key={q.id} question={q} t={t} onAnswer={onAnswerQuestion} />
           ))}
         </div>
       );
     case "score-table":
-      return <ScoreTableCard key={message.id} table={message.table} />;
+      return <ScoreTableCard key={message.id} table={message.table} t={t} />;
     case "adaptation-result":
-      return <AdaptationResultCard key={message.id} result={message.result} />;
+      return <AdaptationResultCard key={message.id} result={message.result} t={t} />;
     case "error":
-      return <ErrorBox key={message.id} message={message.message} canRetry={canRetry} onRetry={onRetry} />;
+      return (
+        <ErrorBox
+          key={message.id}
+          message={message.message}
+          t={t}
+          canRetry={canRetry}
+          onRetry={onRetry}
+        />
+      );
     case "step":
       return null;
     default:
@@ -677,6 +716,7 @@ function renderMessage(
 }
 
 export function ChatPane({
+  locale,
   session,
   masterResumeReady,
   providerReady,
@@ -689,6 +729,7 @@ export function ChatPane({
   onEditMasterResume,
   onOpenSettings,
 }: ChatPaneProps) {
+  const t = createTranslator(locale);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -705,9 +746,10 @@ export function ChatPane({
             masterResumeReady={masterResumeReady}
             providerReady={providerReady}
             providerLabel={providerLabel}
+            t={t}
           />
         </div>
-        <Composer disabled={!masterResumeReady || !providerReady} onSubmitJob={onSubmitJob} />
+        <Composer t={t} disabled={!masterResumeReady || !providerReady} onSubmitJob={onSubmitJob} />
       </section>
     );
   }
@@ -719,24 +761,24 @@ export function ChatPane({
       <div className="min-h-0 flex-1 overflow-auto px-6 pt-6 pb-2" ref={scrollRef}>
         <div className="mx-auto flex max-w-[760px] flex-col gap-[22px]">
           {session.messages.map((message) =>
-            renderMessage(message, onAnswerQuestion, !isBusy, onRetry)
+            renderMessage(message, t, onAnswerQuestion, !isBusy, onRetry)
           )}
           {showAdaptButton && (
             <div className="flex items-center justify-between gap-3.5 rounded-[14px] border border-[var(--line)] bg-[var(--card)] p-[18px] shadow-[var(--shadow-sm)]">
               <div>
-                <strong className="text-[14px] text-[var(--ink)]">Ready to adapt?</strong>
+                <strong className="text-[14px] text-[var(--ink)]">{t("chat.readyToAdaptTitle")}</strong>
                 <span className="mt-0.5 block text-[13px] text-[var(--muted)]">
-                  Diagnosis complete. I can now adapt your CV for this role.
+                  {t("chat.readyToAdaptLede")}
                 </span>
               </div>
               <button className={primaryButton} type="button" onClick={onAdaptCv} disabled={isBusy}>
-                Adapt CV
+                {t("chat.adaptCv")}
               </button>
             </div>
           )}
         </div>
       </div>
-      <Composer disabled={isBusy} onSubmitJob={onSubmitJob} />
+      <Composer t={t} disabled={isBusy} onSubmitJob={onSubmitJob} />
     </section>
   );
 }

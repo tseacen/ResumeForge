@@ -2,6 +2,8 @@
 
 import { type ReactNode, useEffect, useRef, useState } from "react";
 
+import { createTranslator, type AppLocale } from "@/lib/i18n";
+
 const HANDLE_WIDTH = 12;
 const DEFAULT_RATIO = 0.45;
 const STEP_PX = 32;
@@ -20,6 +22,7 @@ function readStoredRatio(storageKey: string): number | null {
 }
 
 interface ResizableWorkspaceProps {
+  locale?: AppLocale;
   left: ReactNode;
   right: ReactNode;
   storageKey?: string;
@@ -28,12 +31,14 @@ interface ResizableWorkspaceProps {
 }
 
 export function ResizableWorkspace({
+  locale = "en",
   left,
   right,
   storageKey = "resumeforge.workspace.split",
   minLeftPx = 380,
   minRightPx = 460,
 }: ResizableWorkspaceProps) {
+  const t = createTranslator(locale);
   const containerRef = useRef<HTMLDivElement>(null);
   const ratioRef = useRef(DEFAULT_RATIO);
   const [leftWidth, setLeftWidth] = useState(0);
@@ -160,12 +165,12 @@ export function ResizableWorkspace({
       <button
         type="button"
         role="separator"
-        aria-label="Redimensionner le chat et l'aperçu du CV"
+        aria-label={t("workspace.resizeAria")}
         aria-orientation="vertical"
         aria-valuemin={20}
         aria-valuemax={80}
         aria-valuenow={splitPercent}
-        title="Glisser pour redimensionner. Double-clic pour réinitialiser."
+        title={t("workspace.resizeTitle")}
         className={`group relative h-full min-h-0 cursor-col-resize touch-none border-r border-l border-[var(--line)] bg-[var(--bg-2)] transition-colors hover:bg-[var(--panel)] focus-visible:bg-[var(--panel)] focus-visible:shadow-[var(--focus)] focus-visible:outline-none max-[980px]:hidden ${
           isDragging ? "bg-[var(--panel)]" : ""
         }`}

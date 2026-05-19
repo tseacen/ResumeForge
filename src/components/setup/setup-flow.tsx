@@ -10,13 +10,12 @@ import {
   Terminal,
   TestTube,
 } from "lucide-react";
+import React, { useRef, useState } from "react";
 import { BsAnthropic, BsOpenai } from "react-icons/bs";
 import { SiGooglegemini } from "react-icons/si";
 
-import { useRef, useState } from "react";
-
+import { createTranslator, type AppLocale } from "@/lib/i18n";
 import { type AIProviderId, type ProviderStatus } from "@/lib/schemas/settings.schema";
-import React from "react";
 
 const pageClass =
   "mx-auto w-full max-w-[920px] flex-1 overflow-y-auto px-11 pt-9 pb-16 animate-[rf-fade_420ms_cubic-bezier(0.22,1,0.36,1)] max-[980px]:max-w-none max-[980px]:px-5 max-[980px]:pt-7 max-[980px]:pb-12";
@@ -43,6 +42,7 @@ const providerStatusClass: Record<ProviderStatus, string> = {
 };
 
 export interface SetupFlowProps {
+  locale: AppLocale;
   step: "setup-ai" | "setup-cv";
   selectedProvider: AIProviderId;
   providerStatus: Record<AIProviderId, ProviderStatus>;
@@ -94,8 +94,13 @@ const providerMeta: Array<{
     },
   ];
 
-function StepRail({ current }: { current: 1 | 2 | 3 }) {
-  const steps = ["Configure AI", "Add base resume", "Ready to adapt"];
+function StepRail({ current, locale }: { current: 1 | 2 | 3; locale: AppLocale }) {
+  const t = createTranslator(locale);
+  const steps = [
+    t("setup.step.configureAi"),
+    t("setup.step.addBaseResume"),
+    t("setup.step.readyToAdapt"),
+  ];
   return (
     <div className="mb-6 flex w-fit items-center rounded-full border border-[var(--line)] bg-[var(--bg-2)] p-1.5 max-[980px]:w-full max-[980px]:flex-col max-[980px]:items-stretch max-[980px]:rounded-[18px]">
       {steps.map((label, index) => {
@@ -135,14 +140,17 @@ function StepRail({ current }: { current: 1 | 2 | 3 }) {
 }
 
 function ModelSelect({
+  locale,
   models,
   selected,
   onSelect,
 }: {
+  locale: AppLocale;
   models: string[];
   selected: string;
   onSelect: (model: string) => void;
 }) {
+  const t = createTranslator(locale);
   return (
     <div className="relative">
       <select
@@ -159,7 +167,7 @@ function ModelSelect({
             {m}
           </option>
         ))}
-        <option value="__custom__">Enter a model…</option>
+        <option value="__custom__">{t("setup.provider.enterModel")}</option>
       </select>
       <ChevronDown
         className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-[var(--muted)]"
@@ -170,6 +178,7 @@ function ModelSelect({
 }
 
 function ProviderCard({
+  locale,
   id,
   name,
   sub,
@@ -183,6 +192,7 @@ function ProviderCard({
   onTest,
   onSelectModel,
 }: {
+  locale: AppLocale;
   id: AIProviderId;
   name: string;
   sub: string;
@@ -196,6 +206,7 @@ function ProviderCard({
   onTest: (provider: AIProviderId) => void;
   onSelectModel: (provider: AIProviderId, model: string) => void;
 }) {
+  const t = createTranslator(locale);
   const [customModel, setCustomModel] = useState("");
   const isCustom = selectedModel === "__custom__";
 
@@ -246,12 +257,12 @@ function ProviderCard({
         >
           <span className="h-1.5 w-1.5 rounded-full" />
           {status === "idle"
-            ? "Not tested"
+            ? t("setup.provider.notTested")
             : status === "checking"
-              ? "Testing…"
+              ? t("setup.provider.testing")
               : status === "available"
-                ? "Available · CLI detected"
-                : "CLI not found"}
+                ? t("setup.provider.available")
+                : t("setup.provider.unavailable")}
         </span>
         <button
           className={smallButtonClass}
@@ -261,7 +272,7 @@ function ProviderCard({
             onTest(id);
           }}
         >
-          <TestTube size={12} /> Tester
+          <TestTube size={12} /> {t("setup.provider.test")}
         </button>
       </div>
 
@@ -278,11 +289,12 @@ function ProviderCard({
           onClick={(e) => e.stopPropagation()}
         >
           <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.1em] text-[var(--muted)] uppercase">
-            <Terminal size={10} /> Model
+            <Terminal size={10} /> {t("setup.provider.model")}
           </div>
           {selected ? (
             <>
               <ModelSelect
+                locale={locale}
                 models={models}
                 selected={selectedModel}
                 onSelect={(m) => onSelectModel(id, m)}
@@ -291,7 +303,7 @@ function ProviderCard({
                 <input
                   type="text"
                   className="mt-1.5 w-full rounded-[8px] border border-[var(--line)] bg-[var(--card-2)] px-3 py-[7px] font-[family-name:var(--font-mono)] text-[12px] text-[var(--ink-2)] outline-none transition-colors focus:border-[var(--accent)] focus:bg-[var(--card)] focus:shadow-[var(--focus)]"
-                  placeholder="nom-exact-du-modèle"
+                  placeholder={t("setup.provider.customModelPlaceholder")}
                   value={customModel}
                   onChange={(e) => {
                     setCustomModel(e.target.value);
@@ -312,26 +324,25 @@ function ProviderCard({
 }
 
 function SetupAI(props: SetupFlowProps) {
+  const t = createTranslator(props.locale);
+
   return (
     <main className={pageClass}>
       <div className={heroClass}>
         <div className={eyebrowClass}>
-          <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" /> Welcome · first setup
+          <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" /> {t("setup.eyebrowWelcome")}
         </div>
         <h1 className={h1Class}>
-          Choose your adaptation{" "}
-          <em className="font-medium text-[var(--accent)] italic">engine</em>.
+          {t("setup.ai.title")}
         </h1>
-        <p className={ledeClass}>
-          ResumeForge relies on a local assistant. No data leaves your machine beyond calls to your
-          configured AI.
-        </p>
+        <p className={ledeClass}>{t("setup.ai.lede")}</p>
       </div>
-      <StepRail current={1} />
+      <StepRail current={1} locale={props.locale} />
       <div className="mt-2 grid grid-cols-3 gap-3.5 max-[1100px]:grid-cols-2 max-[760px]:grid-cols-1">
         {providerMeta.map((provider) => (
           <ProviderCard
             key={provider.id}
+            locale={props.locale}
             {...provider}
             selected={props.selectedProvider === provider.id}
             status={props.providerStatus[provider.id]}
@@ -350,24 +361,22 @@ function SetupAI(props: SetupFlowProps) {
           className="h-[26px] w-[26px] flex-none rounded-[7px] border border-[var(--line)] bg-[var(--card)] p-[5px] text-[var(--muted)]"
           size={15}
         />
-        <span>
-          Your keys stay in the chosen CLI configuration. Local deterministic mode remains
-          available for offline work.
-        </span>
+        <span>{t("setup.ai.keyNote")}</span>
       </div>
       <div className="mt-7 flex justify-end gap-2.5">
         <button className={buttonClass} type="button" onClick={props.onContinueFromAI}>
-          Configure later
+          {t("setup.ai.configureLater")}
         </button>
         <button className={primaryButtonClass} type="button" onClick={props.onContinueFromAI}>
-          Continue <ArrowRight size={14} />
+          {t("setup.ai.continue")} <ArrowRight size={14} />
         </button>
       </div>
     </main>
   );
 }
 
-function SetupCV({ onBackToAI, onSaveMasterResume }: SetupFlowProps) {
+function SetupCV({ locale, onBackToAI, onSaveMasterResume }: SetupFlowProps) {
+  const t = createTranslator(locale);
   const inputRef = useRef<HTMLInputElement>(null);
   const [tab, setTab] = useState<"paste" | "file">("paste");
   const [html, setHtml] = useState("");
@@ -389,17 +398,12 @@ function SetupCV({ onBackToAI, onSaveMasterResume }: SetupFlowProps) {
     <main className={pageClass}>
       <div className={heroClass}>
         <div className={eyebrowClass}>
-          <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" /> Step 2 · Base resume
+          <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" /> {t("setup.cv.eyebrow")}
         </div>
-        <h1 className={h1Class}>
-          Import your <em className="font-medium text-[var(--accent)] italic">master resume</em>.
-        </h1>
-        <p className={ledeClass}>
-          This is the base that ResumeForge will adapt for each job offer. Paste the HTML or drop a
-          local file.
-        </p>
+        <h1 className={h1Class}>{t("setup.cv.title")}</h1>
+        <p className={ledeClass}>{t("setup.cv.lede")}</p>
       </div>
-      <StepRail current={2} />
+      <StepRail current={2} locale={locale} />
       <div className="overflow-hidden rounded-[14px] border border-[var(--line)] bg-[var(--card)] shadow-[var(--shadow-sm)]">
         <div className="flex gap-1 border-b border-[var(--line)] bg-[var(--bg-2)] px-2 pt-2">
           <button
@@ -410,7 +414,7 @@ function SetupCV({ onBackToAI, onSaveMasterResume }: SetupFlowProps) {
             type="button"
             onClick={() => setTab("paste")}
           >
-            <Code2 size={13} /> Paste HTML
+            <Code2 size={13} /> {t("setup.cv.tabPaste")}
           </button>
           <button
             className={`inline-flex items-center gap-[7px] rounded-t-md border-b-2 px-3.5 pt-[9px] pb-2.5 text-[13px] font-medium transition-colors hover:text-[var(--ink-2)] ${tab === "file"
@@ -420,7 +424,7 @@ function SetupCV({ onBackToAI, onSaveMasterResume }: SetupFlowProps) {
             type="button"
             onClick={() => setTab("file")}
           >
-            <FileUp size={13} /> Drop a file
+            <FileUp size={13} /> {t("setup.cv.tabFile")}
           </button>
         </div>
         <div className="p-[18px]">
@@ -455,10 +459,10 @@ function SetupCV({ onBackToAI, onSaveMasterResume }: SetupFlowProps) {
             >
               <FileUp className="h-[52px] w-[52px] rounded-xl border border-[var(--line)] bg-[var(--bg-2)] p-3.5 text-[var(--ink-2)]" />
               <strong className="font-[family-name:var(--font-display)] text-[17px] font-medium tracking-[-0.01em] text-[var(--ink)]">
-                {fileName ?? "Drop your .html file"}
+                {fileName ?? t("setup.cv.dropDefault")}
               </strong>
               <span className="max-w-[340px] text-[13px] leading-normal text-[var(--muted)]">
-                Drag and drop your resume or click to choose a file.
+                {t("setup.cv.dropHint")}
               </span>
             </button>
           )}
@@ -468,19 +472,19 @@ function SetupCV({ onBackToAI, onSaveMasterResume }: SetupFlowProps) {
             {hasContent ? (
               <>
                 <span className="inline-flex items-center gap-1 text-[var(--success)]">
-                  <Check size={12} /> Detected
+                  <Check size={12} /> {t("setup.cv.detected")}
                 </span>
                 <span>·</span>
                 <span className="font-[family-name:var(--font-mono)]">
-                  {(html.length / 1024).toFixed(1)} ko
+                  {(html.length / 1024).toFixed(1)} {t("setup.cv.kb")}
                 </span>
               </>
             ) : (
-              "Waiting for a resume…"
+              t("setup.cv.waiting")
             )}
           </div>
           <button className={smallButtonClass} type="button" disabled={!hasContent}>
-            <Eye size={12} /> Preview
+            <Eye size={12} /> {t("setup.cv.preview")}
           </button>
         </div>
       </div>
@@ -493,7 +497,7 @@ function SetupCV({ onBackToAI, onSaveMasterResume }: SetupFlowProps) {
       />
       <div className="mt-7 flex justify-between gap-2.5">
         <button className={buttonClass} type="button" onClick={onBackToAI}>
-          Back
+          {t("setup.cv.back")}
         </button>
         <button
           className={primaryButtonClass}
@@ -501,7 +505,7 @@ function SetupCV({ onBackToAI, onSaveMasterResume }: SetupFlowProps) {
           disabled={!hasContent}
           onClick={() => onSaveMasterResume(html)}
         >
-          Save & start <ArrowRight size={14} />
+          {t("setup.cv.saveStart")} <ArrowRight size={14} />
         </button>
       </div>
     </main>

@@ -8,6 +8,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { PreviewPane } from "@/components/preview/preview-pane";
 import { SetupFlow } from "@/components/setup/setup-flow";
+import { createTranslator, localeFromUnknown, providerDisplayName } from "@/lib/i18n";
 import { adaptResume, analyzeJob, checkCli, scoreCompatibility } from "@/lib/llm/client";
 import { fetchModelsForProvider } from "@/lib/llm/models-client";
 import { devError, devLog, devTimer } from "@/lib/logger";
@@ -53,32 +54,12 @@ const initialState: ResumeForgeState = {
   error: null,
 };
 
-const ANALYZE_THINKING_PHASES = [
-  "Reading job offer…",
-  "Identifying expected skills…",
-  "Comparing with your CV…",
-  "Detecting points to clarify…",
-];
-
-const SCORE_THINKING_PHASES = [
-  "Weighting compatibility dimensions…",
-  "Analyzing strengths and gaps…",
-  "Identifying interview risks…",
-  "Writing verdict…",
-];
-
-const ADAPT_THINKING_PHASES = [
-  "Selecting modifiable lines…",
-  "Rewriting without adding facts…",
-  "Validating CV evidence…",
-  "Applying changes to original HTML…",
-];
-
 type Action =
   | { type: "hydrate"; state: ResumeForgePersistedState }
   | { type: "provider/select"; provider: AIProviderId }
   | { type: "provider/status"; provider: AIProviderId; status: ProviderStatus }
   | { type: "settings/model"; provider: AIProviderId; model: string }
+  | { type: "settings/language"; language: ResumeForgeState["settings"]["language"] }
   | { type: "setup/ai-complete" }
   | { type: "master/save"; html: string }
   | { type: "master/edit" }
@@ -128,8 +109,15 @@ function reducer(state: ResumeForgeState, action: Action): ResumeForgeState {
     case "hydrate": {
       const settings =
         action.state.settings.selectedProvider === "mock"
-          ? { ...action.state.settings, selectedProvider: "claude-code" as const }
-          : action.state.settings;
+          ? {
+              ...action.state.settings,
+              selectedProvider: "claude-code" as const,
+              language: localeFromUnknown(action.state.settings.language),
+            }
+          : {
+              ...action.state.settings,
+              language: localeFromUnknown(action.state.settings.language),
+            };
 
       return {
         ...state,
@@ -156,6 +144,8 @@ function reducer(state: ResumeForgeState, action: Action): ResumeForgeState {
           selectedModels: { ...state.settings.selectedModels, [action.provider]: action.model },
         },
       };
+    case "settings/language":
+      return { ...state, settings: { ...state.settings, language: action.language } };
     case "setup/ai-complete":
       return {
         ...state,
@@ -235,6 +225,25 @@ function reducer(state: ResumeForgeState, action: Action): ResumeForgeState {
 
 export function ResumeForgeApp() {
   const [state, dispatch] = useReducer(reducer, initialState);
+  const t = createTranslator(state.settings.language);
+  const analyzeThinkingPhases = [
+    t("app.thinking.readingJob"),
+    t("app.thinking.identifyingSkills"),
+    t("app.thinking.comparingCv"),
+    t("app.thinking.detectingClarifications"),
+  ];
+  const scoreThinkingPhases = [
+    t("app.thinking.weightingDimensions"),
+    t("app.thinking.analyzingGaps"),
+    t("app.thinking.identifyingRisks"),
+    t("app.thinking.writingVerdict"),
+  ];
+  const adaptThinkingPhases = [
+    t("app.thinking.selectingLines"),
+    t("app.thinking.rewriting"),
+    t("app.thinking.validatingEvidence"),
+    t("app.thinking.applyingHtml"),
+  ];
   const didLoadRef = useRef(false);
   const [providerModels, setProviderModels] = useState<Record<AIProviderId, string[]>>({
     "claude-code": [],
@@ -253,6 +262,11 @@ export function ResumeForgeApp() {
     if (!didLoadRef.current) return;
     savePersistedState(persistedFromState(state));
   }, [state]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.documentElement.lang = state.settings.language;
+  }, [state.settings.language]);
 
   // Récupère les modèles disponibles au montage pour tous les providers.
   useEffect(() => {
@@ -393,13 +407,13 @@ export function ResumeForgeApp() {
     const endTimer = devTimer("app", "analyze-job");
     const session = setSessionThinking(
       clearTransientMessages(sessionForAnalysis),
-      ANALYZE_THINKING_PHASES[0],
+      analyzeThinkingPhases[0],
       "chat-analyzing"
     );
     latestSessionRef.current = session;
     dispatch({ type: "session/replace", session });
 
-    startThinkingRotation(session.id, ANALYZE_THINKING_PHASES, 1800, "chat-analyzing");
+    startThinkingRotation(session.id, analyzeThinkingPhases, 1800, "chat-analyzing");
 
     try {
       const analysis = await analyzeJob({
@@ -407,12 +421,13 @@ export function ResumeForgeApp() {
         jobText: session.jobText,
         provider: state.settings.selectedProvider,
         model: state.settings.selectedModels?.[state.settings.selectedProvider],
+        language: state.settings.language,
       });
       stopThinkingRotation();
 
       const fresh = latestSessionRef.current;
       if (!fresh || fresh.id !== session.id) return;
-      const next = applyJobAnalysis(clearSessionThinking(fresh), analysis);
+      const next = applyJobAnalysis(clearSessionThinking(fresh), analysis, state.settings.language);
       latestSessionRef.current = next;
       dispatch({ type: "session/replace", session: next });
 
@@ -422,7 +437,7 @@ export function ResumeForgeApp() {
       }
     } catch (err) {
       stopThinkingRotation();
-      const message = err instanceof Error ? err.message : "L'IA n'a pas répondu.";
+      const message = err instanceof Error ? err.message : t("app.aiNoResponse");
       devError("app", "analyze-job failed", message);
       if (state.providerStatus[state.settings.selectedProvider] !== "available") {
         handleProviderTest(state.settings.selectedProvider);
@@ -444,7 +459,7 @@ export function ResumeForgeApp() {
       dispatch({ type: "session/new" });
       return;
     }
-    const session = initializeSession(jobText);
+    const session = initializeSession(jobText, state.settings.language);
     latestSessionRef.current = session;
     dispatch({ type: "session/replace", session });
     await runJobAnalysis(session);
@@ -501,13 +516,13 @@ export function ResumeForgeApp() {
 
     const scoringSession = setSessionThinking(
       clearTransientMessages(sessionForScoring),
-      SCORE_THINKING_PHASES[0],
+      scoreThinkingPhases[0],
       "chat-scoring"
     );
     latestSessionRef.current = scoringSession;
     dispatch({ type: "session/replace", session: scoringSession });
 
-    startThinkingRotation(scoringSession.id, SCORE_THINKING_PHASES, 1800, "chat-scoring");
+    startThinkingRotation(scoringSession.id, scoreThinkingPhases, 1800, "chat-scoring");
 
     try {
       const report = await scoreCompatibility({
@@ -517,6 +532,7 @@ export function ResumeForgeApp() {
         answers: answersFromSession(scoringSession),
         provider: state.settings.selectedProvider,
         model: state.settings.selectedModels?.[state.settings.selectedProvider],
+        language: state.settings.language,
       });
       stopThinkingRotation();
 
@@ -527,7 +543,7 @@ export function ResumeForgeApp() {
       dispatch({ type: "session/replace", session: scored });
     } catch (err) {
       stopThinkingRotation();
-      const message = err instanceof Error ? err.message : "L'IA n'a pas répondu.";
+      const message = err instanceof Error ? err.message : t("app.aiNoResponse");
       devError("app", "score failed", message);
       const fresh = latestSessionRef.current;
       if (fresh && fresh.id === scoringSession.id) {
@@ -565,13 +581,13 @@ export function ResumeForgeApp() {
 
     const adaptingSession = setSessionThinking(
       clearTransientMessages(sessionForAdaptation),
-      ADAPT_THINKING_PHASES[0],
+      adaptThinkingPhases[0],
       "chat-scored"
     );
     latestSessionRef.current = adaptingSession;
     dispatch({ type: "session/replace", session: adaptingSession });
 
-    startThinkingRotation(adaptingSession.id, ADAPT_THINKING_PHASES, 1800, "chat-scored");
+    startThinkingRotation(adaptingSession.id, adaptThinkingPhases, 1800, "chat-scored");
 
     try {
       const tailoredResume = await adaptResume({
@@ -582,17 +598,22 @@ export function ResumeForgeApp() {
         answers: answersFromSession(adaptingSession),
         provider: state.settings.selectedProvider,
         model: state.settings.selectedModels?.[state.settings.selectedProvider],
+        language: state.settings.language,
       });
       stopThinkingRotation();
 
       const fresh = latestSessionRef.current;
       if (!fresh || fresh.id !== adaptingSession.id) return;
-      const adapted = applyTailoredResume(clearSessionThinking(fresh), tailoredResume);
+      const adapted = applyTailoredResume(
+        clearSessionThinking(fresh),
+        tailoredResume,
+        state.settings.language
+      );
       latestSessionRef.current = adapted;
       dispatch({ type: "session/replace", session: adapted });
     } catch (err) {
       stopThinkingRotation();
-      const message = err instanceof Error ? err.message : "L'IA n'a pas répondu.";
+      const message = err instanceof Error ? err.message : t("app.aiNoResponse");
       devError("app", "adapt CV failed", message);
       const fresh = latestSessionRef.current;
       if (fresh && fresh.id === adaptingSession.id) {
@@ -646,6 +667,7 @@ export function ResumeForgeApp() {
   return (
     <div className="grid min-h-screen grid-cols-[232px_minmax(0,1fr)] max-[980px]:grid-cols-1">
       <Sidebar
+        locale={state.settings.language}
         sessions={state.sessions}
         activeSessionId={state.activeSession?.id ?? null}
         onNewSession={() => dispatch({ type: "session/new" })}
@@ -656,17 +678,20 @@ export function ResumeForgeApp() {
       <div className="flex h-screen min-w-0 flex-col overflow-hidden">
         <Topbar
           phase={state.phase}
+          locale={state.settings.language}
           title={state.activeSession?.title ?? null}
           activeModel={
             state.settings.selectedModels?.[state.settings.selectedProvider] ??
             state.settings.selectedProvider
           }
           canExport={false}
+          onLanguageChange={(language) => dispatch({ type: "settings/language", language })}
           onReset={() => dispatch({ type: "session/new" })}
           onExport={() => {}}
         />
         {isSetup ? (
           <SetupFlow
+            locale={state.settings.language}
             step={state.phase === "setup-ai" ? "setup-ai" : "setup-cv"}
             selectedProvider={state.settings.selectedProvider}
             providerStatus={state.providerStatus}
@@ -682,18 +707,17 @@ export function ResumeForgeApp() {
         ) : (
           <main className="flex flex-1 overflow-y-auto p-0">
             <ResizableWorkspace
+              locale={state.settings.language}
               left={
                 <ChatPane
+                  locale={state.settings.language}
                   session={state.activeSession}
                   masterResumeReady={Boolean(state.masterResumeHtml)}
                   providerReady={providerReady}
-                  providerLabel={
-                    state.settings.selectedProvider === "claude-code"
-                      ? "Claude Code"
-                      : state.settings.selectedProvider === "openai-codex"
-                        ? "OpenAI Codex"
-                        : "Gemini CLI"
-                  }
+                  providerLabel={providerDisplayName(
+                    state.settings.language,
+                    state.settings.selectedProvider
+                  )}
                   isBusy={isBusy}
                   onSubmitJob={handleSubmitJob}
                   onAnswerQuestion={handleAnswerClarification}
@@ -706,6 +730,7 @@ export function ResumeForgeApp() {
               right={
                 state.activeSession ? (
                   <PreviewPane
+                    locale={state.settings.language}
                     originalHtml={state.masterResumeHtml}
                     adaptedHtml={state.activeSession.tailoredResume?.adaptedHtml ?? null}
                     audit={state.activeSession.tailoredResume?.audit ?? []}

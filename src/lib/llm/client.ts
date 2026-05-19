@@ -1,3 +1,4 @@
+import { type AppLocale } from "@/lib/i18n";
 import { type CompatibilityReport, type JobAnalysis } from "@/lib/llm/prompts";
 import { type AIProviderId } from "@/lib/schemas/settings.schema";
 import { type TailoredResume } from "@/lib/schemas/tailoring.schema";
@@ -10,6 +11,7 @@ export interface AnalyzeJobInput {
   jobText: string;
   provider: AIProviderId;
   model?: string;
+  language?: AppLocale;
 }
 
 export interface ScoreInput {
@@ -17,6 +19,7 @@ export interface ScoreInput {
   jobText: string;
   provider: AIProviderId;
   model?: string;
+  language?: AppLocale;
   jobAnalysis: JobAnalysis;
   answers: Array<{ id: string; question: string; answer: string }>;
 }
@@ -26,6 +29,7 @@ export interface AdaptResumeInput {
   jobText: string;
   provider: AIProviderId;
   model?: string;
+  language?: AppLocale;
   jobAnalysis: JobAnalysis;
   compatibilityReport: CompatibilityReport;
   answers: Array<{ id: string; question: string; answer: string }>;
