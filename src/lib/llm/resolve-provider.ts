@@ -45,8 +45,7 @@ export async function resolveProvider(
     return {
       error: "no_provider_selected",
       binary: "",
-      message:
-        "Aucun moteur d'IA sélectionné. Configurez Claude Code ou OpenAI Codex dans les réglages.",
+      message: "No AI engine selected. Configure Claude Code or OpenAI Codex in settings.",
     };
   }
   const binary = CLI_BINARY[providerId];
@@ -54,7 +53,7 @@ export async function resolveProvider(
     return {
       error: "unsupported_provider",
       binary: "",
-      message: "Moteur d'IA non supporté.",
+      message: "Unsupported AI engine.",
     };
   }
   const binaryPath = await locateBinary(binary);
@@ -62,7 +61,7 @@ export async function resolveProvider(
     return {
       error: "cli_not_installed",
       binary,
-      message: `Le CLI '${binary}' est introuvable. Installez-le, vérifiez votre PATH puis réessayez.`,
+      message: `CLI '${binary}' not found. Install it and verify your PATH.`,
     };
   }
   let provider: LLMProvider;

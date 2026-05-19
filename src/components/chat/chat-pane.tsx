@@ -114,7 +114,7 @@ function UserBubble({ body, truncated }: { body: string; truncated: boolean }) {
             type="button"
             onClick={() => setExpanded((value) => !value)}
           >
-            {expanded ? "Réduire" : "Tout afficher"}
+            {expanded ? "Collapse" : "Show all"}
           </button>
         )}
       </div>
@@ -156,7 +156,7 @@ function ErrorBox({
     <div className="flex items-start gap-3 rounded-[12px] border border-[rgba(181,57,47,0.25)] bg-[var(--danger-soft)] px-4 py-3.5 text-[var(--danger)]">
       <AlertCircle size={18} className="mt-px flex-none" strokeWidth={2} />
       <div className="min-w-0 flex-1">
-        <strong className="block text-[13px] font-semibold">L&apos;IA n&apos;a pas répondu.</strong>
+        <strong className="block text-[13px] font-semibold">The AI did not respond.</strong>
         <p className="m-0 mt-1 text-[13px] leading-[1.55] break-words text-[rgba(181,57,47,0.95)]">
           {message}
         </p>
@@ -167,7 +167,7 @@ function ErrorBox({
             onClick={onRetry}
             disabled={!canRetry}
           >
-            Réessayer
+            Retry
           </button>
         </div>
       </div>
@@ -222,8 +222,8 @@ function ClarificationCard({
         <>
           <p className="mt-2 text-[11.5px] text-[var(--muted)]">
             {isMultiple
-              ? "Plusieurs réponses possibles."
-              : "Choisissez une réponse ou saisissez une précision."}
+              ? "Multiple answers allowed."
+              : "Choose an answer or type a custom reply."}
           </p>
           <div className="mt-3 flex flex-wrap gap-1.5">
             {question.suggestedAnswers.map((answer) => (
@@ -250,7 +250,7 @@ function ClarificationCard({
           <div className="mt-2 flex gap-1.5">
             <input
               className="flex-1 rounded-md border border-[var(--line)] bg-[var(--card)] px-2.5 py-1.5 text-[13px] text-[var(--ink)] outline-none focus:border-[var(--accent)] focus:shadow-[var(--focus)]"
-              placeholder="Réponse libre…"
+              placeholder="Custom answer…"
               value={custom}
               onChange={(e) => setCustom(e.target.value)}
               onKeyDown={(e) => {
@@ -277,14 +277,14 @@ function ClarificationCard({
                 setCustom("");
               }}
             >
-              {isMultiple ? "Valider la sélection" : "Valider"}
+              {isMultiple ? "Confirm selection" : "Confirm"}
             </button>
           </div>
         </>
       )}
       {answered && (
         <div className="mt-2.5 text-[12.5px] text-[var(--success)]">
-          ✓ Réponse : {question.answeredWith}
+          ✓ Answer: {question.answeredWith}
         </div>
       )}
     </div>
@@ -303,7 +303,7 @@ function ScoreTableCard({ table }: { table: ScoreTable }) {
       <div className="flex flex-wrap items-center justify-between gap-3.5 border-b border-[var(--line)] px-[18px] pt-3.5 pb-3">
         <div className="flex items-center gap-2.5 font-[family-name:var(--font-display)] text-[15px] font-medium tracking-[-0.01em] text-[var(--ink)]">
           <TrendingUp className="h-[26px] w-[26px] rounded-[7px] bg-[var(--accent-tint)] p-1.5 text-[var(--accent)]" />
-          Tableau de compatibilité
+          Compatibility table
           <span
             className={`ml-2 rounded-full border px-2 py-[2px] text-[10.5px] font-medium tracking-wider uppercase ${
               table.riskLevel === "low"
@@ -313,7 +313,7 @@ function ScoreTableCard({ table }: { table: ScoreTable }) {
                   : "border-[var(--danger)]/30 bg-[var(--danger-soft)] text-[var(--danger)]"
             }`}
           >
-            Risque {table.riskLevel}
+            Risk {table.riskLevel}
           </span>
         </div>
         <div className="inline-flex items-baseline gap-1.5">
@@ -356,7 +356,7 @@ function ScoreTableCard({ table }: { table: ScoreTable }) {
           {table.strengths.length > 0 && (
             <div>
               <div className="mb-1 text-[10.5px] font-semibold tracking-wider text-[var(--success)] uppercase">
-                Forces
+                Strengths
               </div>
               <ul className="m-0 list-none space-y-1 p-0 text-[var(--ink-2)]">
                 {table.strengths.map((s, i) => (
@@ -370,7 +370,7 @@ function ScoreTableCard({ table }: { table: ScoreTable }) {
           {table.weaknesses.length > 0 && (
             <div>
               <div className="mb-1 text-[10.5px] font-semibold tracking-wider text-[var(--warn)] uppercase">
-                Faiblesses
+                Weaknesses
               </div>
               <ul className="m-0 list-none space-y-1 p-0 text-[var(--ink-2)]">
                 {table.weaknesses.map((s, i) => (
@@ -384,7 +384,7 @@ function ScoreTableCard({ table }: { table: ScoreTable }) {
           {table.blockers.length > 0 && (
             <div>
               <div className="mb-1 text-[10.5px] font-semibold tracking-wider text-[var(--danger)] uppercase">
-                Bloqueurs
+                Blockers
               </div>
               <ul className="m-0 list-none space-y-1 p-0 text-[var(--ink-2)]">
                 {table.blockers.map((s, i) => (
@@ -399,7 +399,7 @@ function ScoreTableCard({ table }: { table: ScoreTable }) {
       )}
       {table.missingKeywords.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 border-t border-[var(--line)] bg-[var(--bg-2)] px-[18px] py-3 text-xs text-[var(--muted)]">
-          <span className="font-medium">Mots-clés manquants :</span>
+          <span className="font-medium">Missing keywords:</span>
           {table.missingKeywords.map((need) => (
             <em
               key={need.term}
@@ -414,7 +414,7 @@ function ScoreTableCard({ table }: { table: ScoreTable }) {
       {table.interviewRisks.length > 0 && (
         <div className="border-t border-[var(--line)] bg-[var(--card-2)] px-[18px] py-3 text-[12.5px] text-[var(--ink-2)]">
           <div className="mb-1 text-[10.5px] font-semibold tracking-wider text-[var(--muted)] uppercase">
-            Risques d&apos;entretien
+            Interview risks
           </div>
           <ul className="m-0 list-none space-y-0.5 p-0">
             {table.interviewRisks.map((r, i) => (
@@ -442,7 +442,7 @@ function AdaptationResultCard({
         <div>
           <div className="flex items-center gap-2.5 font-[family-name:var(--font-display)] text-[15px] font-medium tracking-[-0.01em] text-[var(--ink)]">
             <ShieldCheck className="h-[26px] w-[26px] rounded-[7px] bg-[var(--success-soft)] p-1.5 text-[var(--success)]" />
-            CV adapté généré
+            Adapted CV generated
           </div>
           <p className="m-0 mt-1 max-w-[560px] text-[12.5px] leading-[1.45] text-[var(--muted)]">
             {result.summary}
@@ -450,11 +450,10 @@ function AdaptationResultCard({
         </div>
         <div className="flex gap-1.5 text-[11.5px] font-medium">
           <span className="inline-flex items-center gap-1 rounded-full border border-[var(--success)]/25 bg-[var(--success-soft)] px-2 py-1 text-[var(--success)]">
-            <CheckCircle2 size={12} /> {applied.length} appliquée
-            {applied.length > 1 ? "s" : ""}
+            <CheckCircle2 size={12} /> {applied.length} applied
           </span>
           <span className="inline-flex items-center gap-1 rounded-full border border-[var(--danger)]/20 bg-[var(--danger-soft)] px-2 py-1 text-[var(--danger)]">
-            <Ban size={12} /> {blocked.length} bloquée{blocked.length > 1 ? "s" : ""}
+            <Ban size={12} /> {blocked.length} blocked
           </span>
         </div>
       </div>
@@ -465,7 +464,7 @@ function AdaptationResultCard({
               <div className="flex items-center justify-between gap-2">
                 <span className="inline-flex items-center gap-1.5 font-medium text-[var(--ink-2)]">
                   <GitCompare size={13} className="text-[var(--muted)]" />
-                  {item.status === "applied" ? "Modification sûre" : "Modification bloquée"}
+                  {item.status === "applied" ? "Safe change" : "Blocked change"}
                 </span>
                 <span
                   className={`rounded-full px-2 py-[2px] text-[10.5px] font-semibold tracking-wider uppercase ${
@@ -489,7 +488,7 @@ function AdaptationResultCard({
       )}
       {result.skippedKeywords.length > 0 && (
         <div className="border-t border-[var(--line)] bg-[var(--bg-2)] px-[18px] py-3 text-[12.5px] text-[var(--muted)]">
-          <span className="font-medium text-[var(--ink-2)]">Non ajoutés faute de preuve : </span>
+          <span className="font-medium text-[var(--ink-2)]">Not added — unsupported: </span>
           {result.skippedKeywords.map((keyword, index) => (
             <span key={keyword.term}>
               {index > 0 ? ", " : ""}
@@ -522,34 +521,33 @@ function Welcome({
           <span
             className={`h-1.5 w-1.5 rounded-full ${providerReady ? "bg-[var(--accent)]" : "bg-[var(--warn)]"}`}
           />
-          {providerReady ? "Prêt" : `${providerLabel} non détecté`}
+          {providerReady ? "Ready" : `${providerLabel} not detected`}
         </div>
         <h1 className="m-0 mb-3.5 font-[family-name:var(--font-display)] text-[40px] leading-[1.05] font-medium tracking-[-0.03em] text-balance text-[var(--ink)]">
-          Quelle offre <em className="font-medium text-[var(--accent)] italic">adapter</em>{" "}
-          aujourd&apos;hui ?
+          Which offer do you want to <em className="font-medium text-[var(--accent)] italic">adapt</em>{" "}
+          today?
         </h1>
         <p className="mt-0 mb-[24px] max-w-[540px] text-[15.5px] leading-[1.55] text-pretty text-[var(--ink-3)]">
-          Collez l&apos;offre. J&apos;analyse, je vous pose les questions utiles si besoin, puis je
-          génère le tableau de compatibilité — sans rien inventer.
+          Paste the offer. I analyze it, ask the useful questions if needed, then generate
+          the compatibility table — without inventing anything.
         </p>
         {!providerReady && (
           <div className="mb-4 flex items-start justify-between gap-3 rounded-[10px] border border-[rgba(181,136,46,0.22)] bg-[var(--warn-soft)] px-3 py-2.5 text-[var(--warn)]">
             <span>
-              <strong>{providerLabel}</strong> n&apos;est pas détecté. Aucune analyse ne sera lancée
-              tant que le CLI n&apos;est pas installé.
+              <strong>{providerLabel}</strong> is not detected. No analysis will run until the CLI is installed.
             </span>
             <button
               className="ml-auto inline-flex items-center gap-1 rounded-md border border-[rgba(181,136,46,0.32)] bg-[var(--card)] px-2 py-1 text-[12px] font-medium text-[var(--ink-2)] whitespace-nowrap hover:bg-[var(--card-2)]"
               type="button"
               onClick={onOpenSettings}
             >
-              Configurer
+              Configure
             </button>
           </div>
         )}
         {!masterResumeReady && (
           <div className="mb-4 rounded-[10px] border border-[rgba(181,136,46,0.22)] bg-[var(--warn-soft)] px-3 py-2.5 text-[var(--warn)]">
-            Ajoutez d&apos;abord votre CV maître pour lancer une adaptation.
+            Add your master CV first to start an adaptation.
           </div>
         )}
         <div className="mt-4 flex flex-wrap gap-2 text-[13px] text-[var(--muted)]">
@@ -558,13 +556,13 @@ function Welcome({
             type="button"
             onClick={onEditMasterResume}
           >
-            <Pencil size={13} /> Modifier le CV de base
+            <Pencil size={13} /> Edit master CV
           </button>
           <span className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-[var(--line)] px-2.5 py-1 text-[var(--muted-2)]">
-            <LinkIcon size={13} /> Import URL — bientôt
+            <LinkIcon size={13} /> URL import — soon
           </span>
           <span className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-[var(--line)] px-2.5 py-1 text-[var(--muted-2)]">
-            <FolderOpen size={13} /> Reprendre une session — bientôt
+            <FolderOpen size={13} /> Resume session — soon
           </span>
         </div>
       </div>
@@ -605,7 +603,7 @@ function Composer({
           disabled={disabled}
           rows={1}
           onChange={(event) => setValue(event.target.value)}
-          placeholder="Collez l'offre d'emploi…"
+          placeholder="Paste the job offer…"
           onKeyDown={(event) => {
             if (event.key === "Enter" && !event.shiftKey) {
               event.preventDefault();
@@ -617,7 +615,7 @@ function Composer({
           <button
             className="grid h-8 w-8 place-items-center rounded-lg text-[var(--muted)] hover:bg-[var(--bg-2)] hover:text-[var(--ink)]"
             type="button"
-            title="Joindre"
+            title="Attach"
             disabled={disabled}
           >
             <Paperclip size={15} />
@@ -625,7 +623,7 @@ function Composer({
           <button
             className="grid h-8 w-8 place-items-center rounded-lg text-[var(--muted)] hover:bg-[var(--bg-2)] hover:text-[var(--ink)]"
             type="button"
-            title="Dicter"
+            title="Dictate"
             disabled={disabled}
           >
             <Mic size={15} />
@@ -726,13 +724,13 @@ export function ChatPane({
           {showAdaptButton && (
             <div className="flex items-center justify-between gap-3.5 rounded-[14px] border border-[var(--line)] bg-[var(--card)] p-[18px] shadow-[var(--shadow-sm)]">
               <div>
-                <strong className="text-[14px] text-[var(--ink)]">Prêt à adapter ?</strong>
+                <strong className="text-[14px] text-[var(--ink)]">Ready to adapt?</strong>
                 <span className="mt-0.5 block text-[13px] text-[var(--muted)]">
-                  Le diagnostic est terminé. Je peux maintenant adapter votre CV à cette offre.
+                  Diagnosis complete. I can now adapt your CV for this role.
                 </span>
               </div>
               <button className={primaryButton} type="button" onClick={onAdaptCv} disabled={isBusy}>
-                Adapter le CV
+                Adapt CV
               </button>
             </div>
           )}

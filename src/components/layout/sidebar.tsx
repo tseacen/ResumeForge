@@ -25,9 +25,9 @@ function groupLabel(dateIso: string): string {
   const yesterday = new Date();
   yesterday.setDate(today.getDate() - 1);
 
-  if (date.toDateString() === today.toDateString()) return "Aujourd'hui";
-  if (date.toDateString() === yesterday.toDateString()) return "Hier";
-  return "Cette semaine";
+  if (date.toDateString() === today.toDateString()) return "Today";
+  if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
+  return "This week";
 }
 
 export function Sidebar({
@@ -61,7 +61,7 @@ export function Sidebar({
         onClick={onNewSession}
       >
         <Edit3 size={15} />
-        <span className="flex-1 overflow-hidden text-left text-ellipsis">Nouvelle adaptation</span>
+        <span className="flex-1 overflow-hidden text-left text-ellipsis">New adaptation</span>
         <span className="rounded border border-[var(--line)] bg-[var(--bg-2)] px-1.5 py-px font-[family-name:var(--font-mono)] text-[10.5px] text-[var(--muted)] max-[1080px]:hidden">
           ⌘ N
         </span>
@@ -70,7 +70,7 @@ export function Sidebar({
       <div className="flex-1 overflow-y-auto px-2 pb-3">
         {Object.entries(grouped).length === 0 && (
           <div className="px-2.5 py-[18px] text-[12.5px] text-[var(--muted)]">
-            Vos adaptations récentes apparaîtront ici.
+            Your recent adaptations will appear here.
           </div>
         )}
         {Object.entries(grouped).map(([day, items]) => (
@@ -98,18 +98,18 @@ export function Sidebar({
                       </span>
                     )}
                     <span>·</span>
-                    <span>{session.status === "adapted" ? "Adapté" : "Diagnostic"}</span>
+                    <span>{session.status === "adapted" ? "Adapted" : "Diagnosis"}</span>
                   </div>
                 </button>
                 <button
                   type="button"
                   className="absolute top-1/2 right-1.5 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-md text-[var(--muted)] opacity-0 transition-opacity hover:bg-[rgba(181,57,47,0.12)] hover:text-[var(--danger)] focus:opacity-100 group-hover:opacity-100"
-                  title="Supprimer cette adaptation"
-                  aria-label={`Supprimer ${session.title}`}
+                  title="Delete this adaptation"
+                  aria-label={`Delete ${session.title}`}
                   onClick={(event) => {
                     event.stopPropagation();
                     if (
-                      window.confirm(`Supprimer définitivement "${session.title}" ? Cette action est irréversible.`)
+                      window.confirm(`Permanently delete "${session.title}"? This action cannot be undone.`)
                     ) {
                       onDeleteSession(session.id);
                     }
@@ -132,13 +132,13 @@ export function Sidebar({
             <div className="text-[13px] leading-[1.2] font-medium text-[var(--ink)]">
               Local session
             </div>
-            <div className="text-[11px] text-[var(--muted)]">Données locales</div>
+            <div className="text-[11px] text-[var(--muted)]">Local data</div>
           </div>
         </div>
         <button
           className="grid h-7 w-7 place-items-center rounded-md text-[var(--muted)] hover:bg-[rgba(31,30,27,0.06)] hover:text-[var(--ink)]"
           type="button"
-          title="Réglages"
+          title="Settings"
           onClick={onOpenSettings}
         >
           <Settings size={16} />
