@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: release-${{ github.workflow }}-${{ github.ref }}
+  group: release-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -15,19 +15,32 @@ permissions:
 
 jobs:
   build-and-release:
-    name: Build and release (${{ matrix.platform }})
+    name: Build (${{ matrix.name }})
     strategy:
       fail-fast: false
       matrix:
         include:
-          - platform: macos-latest
+          # macOS universal binary — covers both Intel and Apple Silicon
+          - name: macOS (universal)
+            platform: macos-latest
+            args: --target universal-apple-darwin
+            rust_targets: x86_64-apple-darwin aarch64-apple-darwin
+
+          # Windows x64
+          - name: Windows (x64)
+            platform: windows-latest
             args: ""
-          - platform: ubuntu-22.04
+            rust_targets: ""
+
+          # Linux — produces .deb + AppImage
+          - name: Linux (x64)
+            platform: ubuntu-22.04
             args: ""
-          - platform: windows-latest
-            args: ""
+            rust_targets: ""
+
     runs-on: ${{ matrix.platform }}
     timeout-minutes: 60
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -46,16 +59,24 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install Linux dependencies
+      - name: Add Rust targets (macOS universal binary)
+        if: matrix.rust_targets != ''
+        run: rustup target add ${{ matrix.rust_targets }}
+
+      - name: Install Linux system dependencies
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf
 
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build and upload Tauri bundles
+      - name: Build and publish Tauri bundles
         uses: tauri-apps/tauri-action@v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -63,7 +84,17 @@ jobs:
           tauriScript: pnpm tauri
           tagName: ${{ github.ref_name }}
           releaseName: "ResumeForge ${{ github.ref_name }}"
+          releaseBody: |
+            ## Installation
+
+            | Platform | File |
+            |---|---|
+            | macOS (Intel + Apple Silicon) | `.dmg` |
+            | Windows | `.msi` or `.exe` |
+            | Linux | `.deb` or `.AppImage` |
+
+            See the assets below.
           generateReleaseNotes: true
           releaseDraft: false
-          prerelease: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
           args: ${{ matrix.args }}
