@@ -32,12 +32,10 @@ async function executeCommand(
   const result = await command.execute();
   if (result.code !== 0) {
     const stderr = (result.stderr ?? "").toString().trim().slice(0, 600);
-    throw new Error(
-      `${program} a terminé avec le code ${result.code ?? "?"}. ${stderr || "(stderr vide)"}`
-    );
+    throw new Error(`${program} exited with code ${result.code ?? "?"}. ${stderr || "(no stderr)"}`);
   }
   const stdout = (result.stdout ?? "").toString().trim();
-  if (!stdout) throw new Error(`${program} a renvoyé une sortie vide.`);
+  if (!stdout) throw new Error(`${program} returned empty output.`);
   return stdout;
 }
 
@@ -97,10 +95,6 @@ export class TauriGeminiProvider implements LLMProvider {
     return { content, model: this.model ?? "gemini-cli" };
   }
 }
-
-// ──────────────────────────────────────────────────────────────────────────────
-// Détection CLI via `which`
-// ──────────────────────────────────────────────────────────────────────────────
 
 export async function checkCliAvailableViaShell(
   binary: "claude" | "codex" | "gemini"

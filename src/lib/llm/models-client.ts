@@ -1,7 +1,7 @@
 import { type AIProviderId } from "@/lib/schemas/settings.schema";
 
-// Liste curated, utilisée si l'API distante refuse (clé absente, offline, etc.).
-// Compatibilité Tauri (static export) : tout reste côté client, aucune route /api/.
+// Fallback used when the remote API is unavailable (missing key, offline, etc.).
+// Tauri compatibility: everything stays client-side, no /api/ route is involved.
 const CURATED_FALLBACK: Record<Exclude<AIProviderId, "mock">, string[]> = {
   "claude-code": ["claude-opus-4-7", "claude-sonnet-4-6", "claude-haiku-4-5"],
   "openai-codex": ["gpt-5.5", "gpt-5.4", "gpt-5.4-mini", "gpt-5.3-codex", "gpt-5.2"],
@@ -36,8 +36,7 @@ interface GeminiModelsResponse {
   models: Array<{ name: string }>;
 }
 
-// Une clé API peut venir d'une variable Next exposée (utile en dev / Tauri build).
-// Pour éviter d'exposer une vraie clé prod, on ne lit que les variables explicitement publiques.
+// Only reads explicitly public env vars to avoid leaking production keys.
 function readPublicEnvKey(provider: Exclude<AIProviderId, "mock">): string | null {
   if (typeof process === "undefined") return null;
   const env = (process as { env?: Record<string, string | undefined> }).env ?? {};
@@ -81,7 +80,7 @@ async function fetchOpenAI(apiKey: string): Promise<string[]> {
 }
 
 async function fetchGemini(apiKey: string): Promise<string[]> {
-  // L'API Gemini utilise la clé en query param, pas en header.
+  // Gemini API requires the key as a query param, not a header.
   const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Gemini API ${res.status}`);

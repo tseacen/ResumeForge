@@ -6,13 +6,6 @@ import {
   type TailoringPlan,
 } from "@/lib/schemas/tailoring.schema";
 
-// ──────────────────────────────────────────────────────────────────────────────
-// JOB ANALYSIS — étape 1
-// L'IA reçoit le texte du poste + les facts du CV maître.
-// Elle retourne : un résumé du poste + une liste de questions de clarification
-// (peut être vide si aucune confusion).
-// ──────────────────────────────────────────────────────────────────────────────
-
 export const ClarificationSchema = z.object({
   id: z.string(),
   label: z.string(),
@@ -31,12 +24,6 @@ export const JobAnalysisSchema = z.object({
 
 export type Clarification = z.infer<typeof ClarificationSchema>;
 export type JobAnalysis = z.infer<typeof JobAnalysisSchema>;
-
-// ──────────────────────────────────────────────────────────────────────────────
-// COMPATIBILITY SCORE — étape 2
-// L'IA reçoit job + résumé + facts + réponses aux clarifications.
-// Elle retourne un objet de scoring complet pour alimenter le tableau.
-// ──────────────────────────────────────────────────────────────────────────────
 
 export const ScoreRowSchema = z.object({
   label: z.string(),
@@ -65,10 +52,6 @@ export const CompatibilityReportSchema = z.object({
 export type CompatibilityReport = z.infer<typeof CompatibilityReportSchema>;
 
 export { TailoringPlanSchema, type TailoringPlan };
-
-// ──────────────────────────────────────────────────────────────────────────────
-// SYSTEM PROMPTS
-// ──────────────────────────────────────────────────────────────────────────────
 
 export const ANALYZE_JOB_SYSTEM = [
   "You are a senior recruiting analyst. You receive (1) a raw job offer and (2) facts extracted from the candidate's master resume.",
@@ -199,10 +182,6 @@ export const TAILOR_RESUME_SYSTEM = [
     2
   ),
 ].join("\n");
-
-// ──────────────────────────────────────────────────────────────────────────────
-// USER MESSAGE BUILDERS
-// ──────────────────────────────────────────────────────────────────────────────
 
 function compactFacts(facts: ResumeFact[]): Array<{ id: string; category: string; text: string }> {
   return facts.slice(0, 80).map((f) => ({

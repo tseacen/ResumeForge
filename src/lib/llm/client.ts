@@ -1,8 +1,3 @@
-// Façade client : la couche UI appelle ces fonctions sans se soucier du mode.
-// En mode web (Next.js dev/prod) : poste sur les routes /api/*.
-// En mode Tauri : poste sur les routes /api/* via la webview Tauri (même chemin).
-// L'appel direct au runner (cheerio, Node.js) est réservé aux scripts serveur.
-
 import { type CompatibilityReport, type JobAnalysis } from "@/lib/llm/prompts";
 import { type AIProviderId } from "@/lib/schemas/settings.schema";
 import { type TailoredResume } from "@/lib/schemas/tailoring.schema";
@@ -49,10 +44,6 @@ async function readJsonOrThrow<T>(response: Response): Promise<T> {
   throw new Error(message);
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-// checkCli
-// ──────────────────────────────────────────────────────────────────────────────
-
 export async function checkCli(provider: AIProviderId): Promise<boolean> {
   if (provider === "mock") return true;
   if (isTauri()) {
@@ -70,10 +61,6 @@ export async function checkCli(provider: AIProviderId): Promise<boolean> {
   }
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-// analyzeJob
-// ──────────────────────────────────────────────────────────────────────────────
-
 export async function analyzeJob(input: AnalyzeJobInput): Promise<JobAnalysis> {
   const res = await fetch("/api/analyze-job", {
     method: "POST",
@@ -84,10 +71,6 @@ export async function analyzeJob(input: AnalyzeJobInput): Promise<JobAnalysis> {
   return data.analysis;
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-// score
-// ──────────────────────────────────────────────────────────────────────────────
-
 export async function scoreCompatibility(input: ScoreInput): Promise<CompatibilityReport> {
   const res = await fetch("/api/score", {
     method: "POST",
@@ -97,10 +80,6 @@ export async function scoreCompatibility(input: ScoreInput): Promise<Compatibili
   const data = await readJsonOrThrow<{ report: CompatibilityReport }>(res);
   return data.report;
 }
-
-// ──────────────────────────────────────────────────────────────────────────────
-// adaptResume
-// ──────────────────────────────────────────────────────────────────────────────
 
 export async function adaptResume(input: AdaptResumeInput): Promise<TailoredResume> {
   const res = await fetch("/api/adapt-cv", {
