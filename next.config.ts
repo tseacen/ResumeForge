@@ -1,5 +1,6 @@
-import type { NextConfig } from "next";
 import { createRequire } from "module";
+
+import type { NextConfig } from "next";
 
 const require = createRequire(import.meta.url);
 const { version } = require("./package.json") as { version: string };
