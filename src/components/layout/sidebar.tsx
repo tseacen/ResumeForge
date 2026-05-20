@@ -56,8 +56,11 @@ export function Sidebar({
         <Image
           src="/banner.webp"
           alt="ResumeForge"
-          width={156}
-          height={52}
+          width={2172}
+          height={724}
+          sizes="156px"
+          priority
+          unoptimized
           className="h-auto w-[156px]"
         />
         {process.env.NEXT_PUBLIC_APP_VERSION && (
