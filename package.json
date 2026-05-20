@@ -1,32 +1,19 @@
 {
   "name": "resume-forge",
   "version": "0.2.0",
+  "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
-  },
-  "dependencies": {
-    "@tauri-apps/api": "^2.11.0",
-    "@tauri-apps/plugin-dialog": "^2.7.1",
-    "@tauri-apps/plugin-fs": "^2.5.1",
-    "@tauri-apps/plugin-shell": "^2.3.5",
-    "cheerio": "^1.2.0",
-    "domhandler": "^6.0.1",
-    "lucide-react": "^1.16.0",
-    "nanoid": "^5.1.11",
-    "next": "16.2.6",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "react-icons": "^5.6.0",
-    "zod": "^4.4.3"
+    "dev": "pnpm --filter @resumeforge/web dev",
+    "build": "pnpm --filter @resumeforge/web build",
+    "start": "pnpm --filter @resumeforge/web start",
+    "lint": "pnpm --filter @resumeforge/web lint",
+    "test": "pnpm --filter @resumeforge/web test",
+    "test:watch": "pnpm --filter @resumeforge/web test:watch",
+    "format": "pnpm -r --if-present format",
+    "format:check": "pnpm -r --if-present format:check",
+    "tauri": "pnpm --filter @resumeforge/desktop tauri",
+    "tauri:dev": "pnpm --filter @resumeforge/desktop tauri:dev",
+    "tauri:build": "pnpm --filter @resumeforge/desktop tauri:build"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -36,19 +23,6 @@
     ]
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.3.0",
-    "@tauri-apps/cli": "^2.11.2",
-    "@types/node": "^20.19.41",
-    "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
-    "eslint": "^9.39.4",
-    "eslint-config-next": "16.2.6",
-    "eslint-config-prettier": "^10.1.8",
-    "prettier": "^3.8.3",
-    "prettier-plugin-tailwindcss": "^0.8.0",
-    "tailwindcss": "^4.3.0",
-    "tsx": "^4.22.2",
-    "typescript": "^5.9.3",
-    "vitest": "^4.1.6"
+    "next": "16.2.6"
   }
 }

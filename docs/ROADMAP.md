@@ -11,7 +11,7 @@
   - diagnostic
   - adapted
 - Keep component styling Tailwind-first.
-- Keep `src/app/globals.css` minimal: tokens, base styles, keyframes, scrollbar, CV paper/diff.
+- Keep `apps/web/src/app/globals.css` minimal: tokens, base styles, keyframes, scrollbar, CV paper/diff.
 
 ## Phase 2 — Strengthen Local Persistence
 
@@ -55,8 +55,8 @@ Current baseline:
 
 Add next:
 
-- session creation tests for `src/lib/resumeforge/agent.ts`
-- CV document mapping tests for `src/lib/resumeforge/cv-document.ts`
+- session creation tests for `apps/web/src/lib/resumeforge/agent.ts`
+- CV document mapping tests for `apps/web/src/lib/resumeforge/cv-document.ts`
 - storage schema migration tests
 - component smoke tests if React testing infrastructure is added
 - optional Playwright visual/user-flow checks later

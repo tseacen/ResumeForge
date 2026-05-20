@@ -20,12 +20,12 @@ The UI is intentionally mockup-first and Tailwind-first. Use Tailwind utilities 
 
 Active components:
 
-- `src/components/resumeforge-app.tsx`
-- `src/components/layout/sidebar.tsx`
-- `src/components/layout/topbar.tsx`
-- `src/components/setup/setup-flow.tsx`
-- `src/components/chat/chat-pane.tsx`
-- `src/components/preview/preview-pane.tsx`
+- `apps/web/src/components/resumeforge-app.tsx`
+- `apps/web/src/components/layout/sidebar.tsx`
+- `apps/web/src/components/layout/topbar.tsx`
+- `apps/web/src/components/setup/setup-flow.tsx`
+- `apps/web/src/components/chat/chat-pane.tsx`
+- `apps/web/src/components/preview/preview-pane.tsx`
 
 Global CSS should stay limited to:
 
@@ -37,23 +37,23 @@ Global CSS should stay limited to:
 
 Those global rules live in:
 
-- `src/app/globals.css`
+- `apps/web/src/app/globals.css`
 
 Do not reintroduce the old tabbed dashboard or shadcn runtime primitives unless explicitly requested.
 
 Removed legacy pieces:
 
-- `src/components/report-tab.tsx`
-- `src/components/resume-preview.tsx`
-- `src/components/audit-panel.tsx`
-- `src/components/missing-keywords.tsx`
-- `src/components/score-dashboard.tsx`
-- `src/components/ui/*`
+- `apps/web/src/components/report-tab.tsx`
+- `apps/web/src/components/resume-preview.tsx`
+- `apps/web/src/components/audit-panel.tsx`
+- `apps/web/src/components/missing-keywords.tsx`
+- `apps/web/src/components/score-dashboard.tsx`
+- `apps/web/src/components/ui/*`
 - `components.json`
 
 ## State Management
 
-`src/components/resumeforge-app.tsx` owns the UI state with `useReducer`.
+`apps/web/src/components/resumeforge-app.tsx` owns the UI state with `useReducer`.
 
 Main state domains:
 
@@ -69,7 +69,7 @@ Main state domains:
 
 Persistence uses:
 
-- `src/lib/resumeforge/storage.ts`
+- `apps/web/src/lib/resumeforge/storage.ts`
 - browser `localStorage`
 - Zod validation through `ResumeForgePersistedStateSchema`
 
@@ -77,15 +77,15 @@ Persistence uses:
 
 Core schemas:
 
-- `src/lib/schemas/resume.schema.ts`
-- `src/lib/schemas/job.schema.ts`
-- `src/lib/schemas/score.schema.ts`
-- `src/lib/schemas/audit.schema.ts`
-- `src/lib/schemas/chat.schema.ts`
-- `src/lib/schemas/cv-document.schema.ts`
-- `src/lib/schemas/session.schema.ts`
-- `src/lib/schemas/settings.schema.ts`
-- `src/lib/schemas/app.schema.ts`
+- `apps/web/src/lib/schemas/resume.schema.ts`
+- `apps/web/src/lib/schemas/job.schema.ts`
+- `apps/web/src/lib/schemas/score.schema.ts`
+- `apps/web/src/lib/schemas/audit.schema.ts`
+- `apps/web/src/lib/schemas/chat.schema.ts`
+- `apps/web/src/lib/schemas/cv-document.schema.ts`
+- `apps/web/src/lib/schemas/session.schema.ts`
+- `apps/web/src/lib/schemas/settings.schema.ts`
+- `apps/web/src/lib/schemas/app.schema.ts`
 
 Important derived models:
 
@@ -103,25 +103,25 @@ The deterministic engine remains separate from UI and LLM provider logic.
 
 Modules:
 
-- `src/lib/parsers/parse-resume-html.ts` — extracts structured facts from a resume HTML string
-- `src/lib/tailoring/adapt-resume.ts` — applies a LLM-generated rewrite plan to the original HTML, auditing every change
+- `apps/web/src/lib/parsers/parse-resume-html.ts` — extracts structured facts from a resume HTML string
+- `apps/web/src/lib/tailoring/adapt-resume.ts` — applies a LLM-generated rewrite plan to the original HTML, auditing every change
 
 Job parsing, compatibility scoring, and the tailoring plan are produced by the LLM layer (see below). `adapt-resume.ts` enforces truthfulness constraints deterministically before any change reaches the output HTML.
 
 ## ResumeForge Session Layer
 
-`src/lib/resumeforge/agent.ts` adapts LLM results into the product experience:
+`apps/web/src/lib/resumeforge/agent.ts` adapts LLM results into the product experience:
 
 - creates and mutates chat messages
 - manages clarification questions and answers
 - builds score tables and adaptation result messages
 - summarizes sessions for the sidebar
 
-`src/lib/resumeforge/storage.ts` handles `localStorage` persistence with schema migration.
+`apps/web/src/lib/resumeforge/storage.ts` handles `localStorage` persistence with schema migration.
 
 ## LLM Provider Layer
 
-LLM interfaces and providers live in `src/lib/llm/`:
+LLM interfaces and providers live in `apps/web/src/lib/llm/`:
 
 - `provider.ts` — shared interface
 - `runner.ts` — orchestrates the three LLM steps: job analysis, scoring, tailoring plan

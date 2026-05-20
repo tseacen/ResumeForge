@@ -1,5 +1,5 @@
-.next/
-node_modules/
+apps/web/.next/
+**/node_modules/
 pnpm-lock.yaml
 next-env.d.ts
-src-tauri/
+apps/desktop/src-tauri/

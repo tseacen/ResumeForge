@@ -4,10 +4,10 @@
   "version": "0.2.0",
   "identifier": "com.resumeforge.app",
   "build": {
-    "frontendDist": "../out",
+    "frontendDist": "../../web/out",
     "devUrl": "http://localhost:3000",
-    "beforeDevCommand": "pnpm dev",
-    "beforeBuildCommand": "node scripts/tauri-build.mjs"
+    "beforeDevCommand": "pnpm --filter @resumeforge/web dev",
+    "beforeBuildCommand": "pnpm --filter @resumeforge/web tauri:export"
   },
   "app": {
     "windows": [

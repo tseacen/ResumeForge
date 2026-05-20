@@ -137,7 +137,7 @@ Prefer targeted versions:
 ```bash
 rtk pnpm test -- resume-parser.test.ts
 rtk rg "tailorResume" packages apps
-rtk git diff -- src/lib/resume.ts
+rtk git diff -- apps/web/src/lib/resume.ts
 ```
 
 If setting up the developer environment, recommend installing RTK separately, but do not make the app depend on RTK at runtime.
@@ -150,7 +150,7 @@ Use these technologies unless the user asks otherwise:
 - Next.js for UI.
 - TypeScript everywhere.
 - Tailwind CSS v4 for the active UI.
-- Minimal CSS in `src/app/globals.css` for design tokens, base styles, keyframes, scrollbar styling, and CV paper/diff rendering.
+- Minimal CSS in `apps/web/src/app/globals.css` for design tokens, base styles, keyframes, scrollbar styling, and CV paper/diff rendering.
 - Zod for schemas and validation.
 - pnpm as package manager.
 - Vitest for unit tests.
@@ -159,7 +159,7 @@ Use these technologies unless the user asks otherwise:
 - Cheerio for HTML parsing.
 - Vercel AI SDK or a small provider adapter layer for LLM calls.
 
-Do not reintroduce shadcn runtime primitives for the current UI unless the user explicitly asks. The active app intentionally removed `src/components/ui/*`, `components.json`, `clsx`, `tailwind-merge`, `class-variance-authority`, and `@base-ui/react`.
+Do not reintroduce shadcn runtime primitives for the current UI unless the user explicitly asks. The active app intentionally removed `apps/web/src/components/ui/*`, `components.json`, `clsx`, `tailwind-merge`, `class-variance-authority`, and `@base-ui/react`.
 
 ## Bootstrap commands
 
@@ -206,7 +206,7 @@ resume-forge/
 ├─ MEMORY.md
 ├─ README.md
 ├─ package.json
-├─ src/
+├─ apps/web/src/
 │  ├─ app/
 │  │  ├─ page.tsx
 │  │  ├─ layout.tsx
@@ -256,7 +256,7 @@ resume-forge/
 │     ├─ parse-job-text.test.ts
 │     ├─ score-compatibility.test.ts
 │     └─ audit-generated-resume.test.ts
-├─ src-tauri/
+├─ apps/desktop/src-tauri/
 ├─ .claude/
 │  └─ commands/
 │     ├─ analyze-cv.md
@@ -478,7 +478,7 @@ Do not reintroduce the removed legacy components unless explicitly requested:
 - `audit-panel`
 - `missing-keywords`
 - `score-dashboard`
-- `src/components/ui/*`
+- `apps/web/src/components/ui/*`
 
 ## Implementation roadmap
 
@@ -532,13 +532,13 @@ rtk pnpm build
 
 ### Phase 5 — UI integration
 
-- Build the ResumeForge v2 app shell in `src/components/resumeforge-app.tsx`.
-- Keep layout components in `src/components/layout/`.
-- Keep setup components in `src/components/setup/`.
-- Keep chat components in `src/components/chat/`.
-- Keep preview components in `src/components/preview/`.
+- Build the ResumeForge v2 app shell in `apps/web/src/components/resumeforge-app.tsx`.
+- Keep layout components in `apps/web/src/components/layout/`.
+- Keep setup components in `apps/web/src/components/setup/`.
+- Keep chat components in `apps/web/src/components/chat/`.
+- Keep preview components in `apps/web/src/components/preview/`.
 - Keep mockup-specific layout and component styling in Tailwind class names where possible.
-- Keep `src/app/globals.css` limited to tokens, base styles, keyframes, scrollbar styling, and CV paper/diff rendering.
+- Keep `apps/web/src/app/globals.css` limited to tokens, base styles, keyframes, scrollbar styling, and CV paper/diff rendering.
 - Display compatibility diagnostics as inline chat cards.
 - Display validation questions as inline chat cards.
 - Display the improved CV in the right preview pane.
@@ -629,7 +629,7 @@ Return a prioritized list of fixes.
 ## Coding rules
 
 - Prefer small files.
-- Prefer pure functions in `src/lib`.
+- Prefer pure functions in `apps/web/src/lib`.
 - Keep UI components dumb when possible.
 - Use TypeScript strictness.
 - Avoid `any`.

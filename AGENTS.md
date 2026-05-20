@@ -99,7 +99,7 @@ ResumeForge now follows the `ResumeForge-2.zip` mockup direction:
 
 Do not reintroduce the old tabbed dashboard UI (`Report`, `Improved CV`, `Audit`, `Missing Keywords`) unless the user explicitly asks.
 
-Do not reintroduce `components/ui` or shadcn runtime primitives just for the current UI. The active implementation is Tailwind-first; keep `src/app/globals.css` limited to design tokens, base styles, keyframes, scrollbar styling, and CV paper/diff rendering.
+Do not reintroduce `components/ui` or shadcn runtime primitives just for the current UI. The active implementation is Tailwind-first; keep `apps/web/src/app/globals.css` limited to design tokens, base styles, keyframes, scrollbar styling, and CV paper/diff rendering.
 
 ## Suggested setup commands
 
@@ -158,7 +158,7 @@ Must not start with:
 Prefer:
 
 ```txt
-src/
+apps/web/src/
   app/
   components/
     chat/
@@ -173,7 +173,7 @@ src/
     llm/
     resumeforge/
   tests/
-src-tauri/
+apps/desktop/src-tauri/
 .claude/commands/
 docs/
 ```
@@ -183,7 +183,7 @@ docs/
 The POC is done when:
 
 - `pnpm dev` runs the app
-- `pnpm tauri dev` runs the desktop shell
+- `pnpm tauri:dev` runs the desktop shell
 - the user can analyze one CV against one job offer
 - scoring and report work
 - improved CV HTML is generated

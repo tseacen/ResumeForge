@@ -20,7 +20,7 @@ Avoid drifting back to the previous generic dashboard.
 
 The current implementation removed:
 
-- `src/components/ui/*`
+- `apps/web/src/components/ui/*`
 - `components.json`
 - `@base-ui/react`
 - `class-variance-authority`
@@ -40,9 +40,9 @@ This can be revisited if the product later needs a broader reusable design syste
 
 ## 3. Deterministic Engine Stays Separate From Product Shell
 
-Parsing, scoring, tailoring, and audit logic stay in `src/lib`.
+Parsing, scoring, tailoring, and audit logic stay in `apps/web/src/lib`.
 
-The UI/session layer in `src/lib/resumeforge` adapts deterministic outputs into the chat and preview experience.
+The UI/session layer in `apps/web/src/lib/resumeforge` adapts deterministic outputs into the chat and preview experience.
 
 Reason:
 
@@ -52,7 +52,7 @@ Reason:
 
 ## 4. Local-First Persistence First
 
-The current app uses browser localStorage through `src/lib/resumeforge/storage.ts`.
+The current app uses browser localStorage through `apps/web/src/lib/resumeforge/storage.ts`.
 
 Reason:
 

@@ -1,7 +1,7 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
-/node_modules
+**/node_modules
 /.pnpm-store/
 /.pnp
 .pnp.*
@@ -17,6 +17,8 @@
 # next.js
 /.next/
 /out/
+/apps/web/.next/
+/apps/web/out/
 
 # production
 /build
@@ -42,7 +44,7 @@ yarn-error.log*
 next-env.d.ts
 
 # Tauri build artifact (api routes temporairement mis de côté)
-/.tauri-api-stash/
+/apps/web/.tauri-api-stash/
 
 # AI agent memory files (internal dev tooling, not for public contributors)
 MEMORY.md

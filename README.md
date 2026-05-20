@@ -90,7 +90,7 @@ Out of scope for this phase:
 ## Repository Layout
 
 ```txt
-src/
+apps/web/src/
   app/
   components/
     chat/
@@ -105,7 +105,7 @@ src/
     resumeforge/
     schemas/
   tests/
-src-tauri/
+apps/desktop/src-tauri/
 docs/
 ```
 

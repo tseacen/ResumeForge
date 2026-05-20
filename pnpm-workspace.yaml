@@ -1,5 +1,5 @@
 packages:
-  - "."
+  - "apps/*"
 allowBuilds:
   esbuild: false
   sharp: false
